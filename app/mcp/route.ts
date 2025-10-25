@@ -1,6 +1,7 @@
-import { baseURL } from "@/baseUrl";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
+
+const baseURL = "https://chatgpt-app-with-next-js-tan-theta.vercel.app";
 
 const getAppsSdkCompatibleHtml = async (baseUrl: string, path: string) => {
   const result = await fetch(`${baseUrl}${path}`);
@@ -56,7 +57,7 @@ const handler = createMcpHandler(async (server) => {
   const centerMapWidget: ContentWidget = {
     id: "center_map",
     title: "Center Map",
-    templateUri: "ui://widget/map-template.html",
+    templateUri: "ui://widget/center-map-template.html",
     invoking: "Centering map...",
     invoked: "Map centered",
     html: html,
