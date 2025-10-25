@@ -280,12 +280,12 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
     // Create GeoJSON for POIs
     const poiGeoJSON = {
-      type: 'FeatureCollection',
+      type: 'FeatureCollection' as const,
       features: pois.map((poi, index) => ({
-        type: 'Feature',
+        type: 'Feature' as const,
         geometry: {
-          type: 'Point',
-          coordinates: [poi.lng, poi.lat]
+          type: 'Point' as const,
+          coordinates: [poi.lng, poi.lat] as [number, number]
         },
         properties: {
           id: index,
@@ -358,10 +358,10 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
       // Create GeoJSON for route
       const routeGeoJSON = {
-        type: 'Feature',
+        type: 'Feature' as const,
         geometry: {
-          type: 'LineString',
-          coordinates: route.coordinates
+          type: 'LineString' as const,
+          coordinates: route.coordinates as [number, number][]
         },
         properties: {
           name: route.name || `Route ${index + 1}`,
@@ -421,10 +421,10 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
       // Create GeoJSON for polygon
       const polygonGeoJSON = {
-        type: 'Feature',
+        type: 'Feature' as const,
         geometry: {
-          type: 'Polygon',
-          coordinates: polygon.coordinates
+          type: 'Polygon' as const,
+          coordinates: polygon.coordinates as [number, number][][]
         },
         properties: {
           name: polygon.name || `Polygon ${index + 1}`,
