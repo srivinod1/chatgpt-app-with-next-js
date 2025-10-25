@@ -254,11 +254,25 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
   // Handle map centering
   const centerMap = (latitude: number, longitude: number, zoom: number) => {
-    if (!mapRef.current) return;
+    if (!mapRef.current) {
+      console.log('Map not ready for centering, waiting...');
+      return;
+    }
     
     console.log('Centering map:', { latitude, longitude, zoom });
-    mapRef.current.setCenter([longitude, latitude]);
-    mapRef.current.setZoom(zoom);
+    
+    // Ensure map is fully loaded before centering
+    if (mapRef.current.loaded()) {
+      mapRef.current.setCenter([longitude, latitude]);
+      mapRef.current.setZoom(zoom);
+    } else {
+      // Wait for map to load before centering
+      mapRef.current.once('load', () => {
+        console.log('Map loaded, now centering');
+        mapRef.current!.setCenter([longitude, latitude]);
+        mapRef.current!.setZoom(zoom);
+      });
+    }
   };
 
   // Handle POI display
@@ -569,6 +583,33 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           return;
         }
 
+        // Additional validation - ensure container is properly attached to DOM
+        if (!container.isConnected || !container.parentNode) {
+          console.error('Container not properly attached to DOM');
+          setError('Map container not properly attached to DOM');
+          setIsLoading(false);
+          return;
+        }
+
+        // Validate container is actually an HTMLElement
+        if (!(container instanceof HTMLElement)) {
+          console.error('Container is not an HTMLElement:', typeof container, container);
+          setError('Map container is not a valid HTML element');
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('Container validation passed, creating map with:', {
+          container: container,
+          containerType: container.constructor.name,
+          isConnected: container.isConnected,
+          parentNode: container.parentNode,
+          dimensions: {
+            width: container.offsetWidth,
+            height: container.offsetHeight
+          }
+        });
+
         const map = new maplibregl.Map({
           container: container,
           style,
@@ -651,6 +692,19 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
   }, [mapAction]);
 
   const handleMapAction = (action: MapActionData) => {
+    if (!mapRef.current) {
+      console.log('Map not ready for action, waiting...');
+      // Wait a bit and try again
+      setTimeout(() => {
+        if (mapRef.current) {
+          handleMapAction(action);
+        }
+      }, 500);
+      return;
+    }
+
+    console.log('Handling map action:', action);
+    
     switch (action.action) {
       case 'center_map':
         centerMap(action.latitude, action.longitude, action.zoom);
