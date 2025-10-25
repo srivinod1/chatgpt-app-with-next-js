@@ -18,8 +18,17 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
   const apiKey = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
   const apiVersion = 1;
 
+  // Debug API key status
+  console.log('TomTom API Key Status:', {
+    hasApiKey: !!apiKey,
+    keyLength: apiKey?.length || 0,
+    keyPrefix: apiKey?.substring(0, 8) + '...' || 'none',
+    environment: typeof window !== 'undefined' ? 'client' : 'server'
+  });
+
   // Show error if API key is missing
   if (!apiKey) {
+    console.error('TomTom API key is missing!');
     return (
       <div style={{ width: '100%', height: '100%', backgroundColor: '#0F172A', position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="text-center p-8 bg-gray-800 rounded-lg max-w-md">
@@ -30,6 +39,11 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
           <p className="text-sm text-gray-400">
             The map will work once the API key is properly configured in Vercel.
           </p>
+          <div className="mt-4 p-2 bg-red-900 bg-opacity-50 rounded text-xs">
+            <p>Debug Info:</p>
+            <p>Environment: {typeof window !== 'undefined' ? 'Client-side' : 'Server-side'}</p>
+            <p>API Key Present: {apiKey ? 'Yes' : 'No'}</p>
+          </div>
         </div>
       </div>
     );
@@ -252,26 +266,63 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
 
   // Callback ref to ensure container is ready
   const mapContainerRef = useCallback((node: HTMLDivElement | null) => {
+    console.log('Map container ref callback:', { node, hasMap: !!mapRef.current });
     if (node && !mapRef.current) {
+      console.log('Setting container ready to true');
       setContainerReady(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!containerReady) return;
+    if (!containerReady) {
+      console.log('Container not ready yet, waiting...');
+      return;
+    }
 
     const loadMap = async () => {
       try {
+        console.log('Starting map load process...');
         const version = await getLatestStyleVersion();
         const style = await fetchStyle(version);
 
-        // Find the container element
-        const container = document.querySelector('[data-map-container]') as HTMLDivElement;
+        // Find the container element with multiple fallback strategies
+        let container = document.querySelector('[data-map-container]') as HTMLDivElement;
+        
         if (!container) {
-          console.error('Map container not found');
-          setError('Map container not found');
+          // Fallback: try to find by ref
+          console.log('Container not found by data attribute, trying fallback...');
+          container = document.querySelector('.map-container') as HTMLDivElement;
+        }
+        
+        if (!container) {
+          // Last resort: wait a bit and try again
+          console.log('Container still not found, waiting 100ms and retrying...');
+          await new Promise(resolve => setTimeout(resolve, 100));
+          container = document.querySelector('[data-map-container]') as HTMLDivElement;
+        }
+
+        if (!container) {
+          console.error('Map container not found after all attempts');
+          setError('Map container not found - please refresh the page');
           setIsLoading(false);
           return;
+        }
+
+        console.log('Container found, initializing map:', {
+          container: container,
+          containerId: container.id,
+          containerClass: container.className,
+          containerDimensions: {
+            width: container.offsetWidth,
+            height: container.offsetHeight
+          }
+        });
+
+        // Ensure container has proper dimensions
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+          console.log('Container has zero dimensions, setting minimum size');
+          container.style.minWidth = '400px';
+          container.style.minHeight = '400px';
         }
 
         const map = new maplibregl.Map({
@@ -284,9 +335,11 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
         mapRef.current = map;
         setIsLoading(false);
+        console.log('Map initialized successfully');
 
         // Wait for map to load before adding features
         map.on('load', () => {
+          console.log('Map loaded event fired');
           if (geojsonData) {
             addFeaturesToMap(geojsonData);
           }
@@ -301,7 +354,11 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
     loadMap();
 
     return () => {
-      mapRef.current?.remove();
+      if (mapRef.current) {
+        console.log('Cleaning up map instance');
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, [containerReady]); // Load when container is ready
 
@@ -350,7 +407,7 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
       <div 
         ref={mapContainerRef}
         data-map-container
-        className="w-full h-full" 
+        className="w-full h-full map-container" 
         style={{ minHeight: '400px' }}
       />
     </div>
