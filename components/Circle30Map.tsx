@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ParsedAIResponse } from '@/types/responses';
@@ -10,10 +10,10 @@ interface Circle30MapProps {
 }
 
 export default function Circle30Map({ geojsonData }: Circle30MapProps) {
-  const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [containerReady, setContainerReady] = useState(false);
 
   const apiKey = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
   const apiVersion = 1;
@@ -250,22 +250,32 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
     }
   };
 
+  // Callback ref to ensure container is ready
+  const mapContainerRef = useCallback((node: HTMLDivElement | null) => {
+    if (node && !mapRef.current) {
+      setContainerReady(true);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!mapContainer.current) return;
+    if (!containerReady) return;
 
     const loadMap = async () => {
       try {
-        // Ensure container is ready
-        if (!mapContainer.current) {
-          console.error('Map container not ready');
-          return;
-        }
-
         const version = await getLatestStyleVersion();
         const style = await fetchStyle(version);
 
+        // Find the container element
+        const container = document.querySelector('[data-map-container]') as HTMLDivElement;
+        if (!container) {
+          console.error('Map container not found');
+          setError('Map container not found');
+          setIsLoading(false);
+          return;
+        }
+
         const map = new maplibregl.Map({
-          container: mapContainer.current,
+          container: container,
           style,
           center: [-97.7431, 30.2672], // Default to Austin
           zoom: 12
@@ -288,14 +298,12 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
       }
     };
 
-    // Add a small delay to ensure DOM is ready
-    const timeoutId = setTimeout(loadMap, 100);
+    loadMap();
 
     return () => {
-      clearTimeout(timeoutId);
       mapRef.current?.remove();
     };
-  }, []); // Initial map load
+  }, [containerReady]); // Load when container is ready
 
   // Handle visualization updates
   useEffect(() => {
@@ -340,7 +348,8 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
         </div>
       )}
       <div 
-        ref={mapContainer} 
+        ref={mapContainerRef}
+        data-map-container
         className="w-full h-full" 
         style={{ minHeight: '400px' }}
       />
