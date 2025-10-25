@@ -266,10 +266,19 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
 
   // Callback ref to ensure container is ready
   const mapContainerRef = useCallback((node: HTMLDivElement | null) => {
-    console.log('Map container ref callback:', { node, hasMap: !!mapRef.current });
+    console.log('Map container ref callback:', { 
+      node, 
+      hasMap: !!mapRef.current,
+      nodeDimensions: node ? { width: node.offsetWidth, height: node.offsetHeight } : null,
+      documentReady: document.readyState,
+      iframeContext: window !== window.top
+    });
     if (node && !mapRef.current) {
       console.log('Setting container ready to true');
-      setContainerReady(true);
+      // Add a small delay to ensure iframe is fully ready
+      setTimeout(() => {
+        setContainerReady(true);
+      }, 100);
     }
   }, []);
 
@@ -282,6 +291,10 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
     const loadMap = async () => {
       try {
         console.log('Starting map load process...');
+        
+        // Wait for iframe to be fully ready (ChatGPT environment)
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
         const version = await getLatestStyleVersion();
         const style = await fetchStyle(version);
 
@@ -296,8 +309,8 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
         
         if (!container) {
           // Last resort: wait a bit and try again
-          console.log('Container still not found, waiting 100ms and retrying...');
-          await new Promise(resolve => setTimeout(resolve, 100));
+          console.log('Container still not found, waiting 200ms and retrying...');
+          await new Promise(resolve => setTimeout(resolve, 200));
           container = document.querySelector('[data-map-container]') as HTMLDivElement;
         }
 
@@ -315,7 +328,9 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
           containerDimensions: {
             width: container.offsetWidth,
             height: container.offsetHeight
-          }
+          },
+          documentReady: document.readyState,
+          iframeContext: window !== window.top
         });
 
         // Ensure container has proper dimensions
@@ -323,6 +338,16 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
           console.log('Container has zero dimensions, setting minimum size');
           container.style.minWidth = '400px';
           container.style.minHeight = '400px';
+          // Wait a bit more for dimensions to be set
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // Final check before creating map
+        if (!container || container.offsetWidth === 0 || container.offsetHeight === 0) {
+          console.error('Container still invalid after dimension fix');
+          setError('Map container dimensions invalid');
+          setIsLoading(false);
+          return;
         }
 
         const map = new maplibregl.Map({
