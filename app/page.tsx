@@ -114,6 +114,13 @@ export default function Home() {
           >
             Visit another page
           </Link>
+          <Link
+            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-blue-600 text-white gap-2 hover:bg-blue-700 font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
+            prefetch={false}
+            href="/map"
+          >
+            View Interactive Map
+          </Link>
           <a
             href="https://vercel.com/templates/ai/chatgpt-app-with-next-js"
             target="_blank"
