@@ -558,18 +558,18 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
       return;
     }
 
+    // In ChatGPT iframe, wait for mapAction before initializing map
+    if (window !== window.top && !mapAction) {
+      console.log('In iframe environment, waiting for mapAction before initializing map...');
+      return;
+    }
+
     const loadMap = async () => {
       try {
         console.log('Starting map load process...');
         
         // Wait for iframe to be fully ready (ChatGPT environment)
         await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // In ChatGPT environment, wait longer for potential mapAction from MCP tools
-        if (window !== window.top) {
-          console.log('In iframe environment, waiting for potential mapAction...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
         
         const version = await getLatestStyleVersion();
         const style = await fetchStyle(version);
