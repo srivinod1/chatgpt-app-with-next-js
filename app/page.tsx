@@ -5,6 +5,7 @@ import { useWidgetProps, useMaxHeight, useDisplayMode } from './hooks';
 import { ParsedAIResponse, MapActionData } from '@/types/responses';
 
 export default function Home() {
+  // coco2 version - force deploy
   const toolOutput = useWidgetProps<Record<string, unknown>>();
   const maxHeight = useMaxHeight() ?? undefined;
   const displayMode = useDisplayMode();
