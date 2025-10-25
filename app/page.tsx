@@ -16,11 +16,24 @@ export default function Home() {
   const isChatGptApp = useIsChatGptApp();
 
   useEffect(() => {
+    // Add debugging for ChatGPT environment
+    console.log('Home page loaded:', {
+      isChatGptApp,
+      isRedirecting,
+      baseURL: typeof window !== 'undefined' ? window.innerBaseUrl : 'server',
+      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server'
+    });
+
     // Only redirect if we're not already on the map page and not in ChatGPT
     if (!isRedirecting && !isChatGptApp) {
       setIsRedirecting(true);
-      // Use replace instead of push to avoid back button issues
-      router.replace('/map');
+      try {
+        // Use replace instead of push to avoid back button issues
+        router.replace('/map');
+      } catch (error) {
+        console.error('Router error:', error);
+        setIsRedirecting(false);
+      }
     }
   }, [router, isRedirecting, isChatGptApp]);
 
