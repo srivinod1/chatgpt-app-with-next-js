@@ -565,6 +565,12 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         // Wait for iframe to be fully ready (ChatGPT environment)
         await new Promise(resolve => setTimeout(resolve, 200));
         
+        // In ChatGPT environment, wait longer for potential mapAction from MCP tools
+        if (window !== window.top) {
+          console.log('In iframe environment, waiting for potential mapAction...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
         const version = await getLatestStyleVersion();
         const style = await fetchStyle(version);
 
@@ -694,7 +700,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         mapRef.current = null;
       }
     };
-  }, [containerReady]); // Load when container is ready
+  }, [containerReady, mapAction]); // Load when container is ready AND mapAction is available
 
   // Handle visualization updates
   useEffect(() => {
