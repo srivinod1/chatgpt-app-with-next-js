@@ -64,6 +64,39 @@ const handler = createMcpHandler(async (server) => {
     description: "Centers the map on specific coordinates with zoom level",
     widgetDomain: "https://chatgpt-app-with-next-js-tan-theta.vercel.app",
   };
+
+  const showPOIsWidget: ContentWidget = {
+    id: "show_pois",
+    title: "Show Points of Interest",
+    templateUri: "ui://widget/show-pois-template.html",
+    invoking: "Adding POIs...",
+    invoked: "POIs displayed",
+    html: html,
+    description: "Displays points of interest on the map",
+    widgetDomain: "https://chatgpt-app-with-next-js-tan-theta.vercel.app",
+  };
+
+  const showRoutesWidget: ContentWidget = {
+    id: "show_routes",
+    title: "Show Routes",
+    templateUri: "ui://widget/show-routes-template.html",
+    invoking: "Adding routes...",
+    invoked: "Routes displayed",
+    html: html,
+    description: "Displays routes on the map",
+    widgetDomain: "https://chatgpt-app-with-next-js-tan-theta.vercel.app",
+  };
+
+  const showPolygonsWidget: ContentWidget = {
+    id: "show_polygons",
+    title: "Show Polygons",
+    templateUri: "ui://widget/show-polygons-template.html",
+    invoking: "Adding polygons...",
+    invoked: "Polygons displayed",
+    html: html,
+    description: "Displays polygons on the map",
+    widgetDomain: "https://chatgpt-app-with-next-js-tan-theta.vercel.app",
+  };
   server.registerResource(
     "content-widget",
     contentWidget.templateUri,
@@ -142,6 +175,90 @@ const handler = createMcpHandler(async (server) => {
             "openai/widgetDescription": centerMapWidget.description,
             "openai/widgetPrefersBorder": true,
             "openai/widgetDomain": centerMapWidget.widgetDomain,
+          },
+        },
+      ],
+    })
+  );
+
+  server.registerResource(
+    "show-pois-widget",
+    showPOIsWidget.templateUri,
+    {
+      title: showPOIsWidget.title,
+      description: showPOIsWidget.description,
+      mimeType: "text/html+skybridge",
+      _meta: {
+        "openai/widgetDescription": showPOIsWidget.description,
+        "openai/widgetPrefersBorder": true,
+      },
+    },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "text/html+skybridge",
+          text: `<html>${showPOIsWidget.html}</html>`,
+          _meta: {
+            "openai/widgetDescription": showPOIsWidget.description,
+            "openai/widgetPrefersBorder": true,
+            "openai/widgetDomain": showPOIsWidget.widgetDomain,
+          },
+        },
+      ],
+    })
+  );
+
+  server.registerResource(
+    "show-routes-widget",
+    showRoutesWidget.templateUri,
+    {
+      title: showRoutesWidget.title,
+      description: showRoutesWidget.description,
+      mimeType: "text/html+skybridge",
+      _meta: {
+        "openai/widgetDescription": showRoutesWidget.description,
+        "openai/widgetPrefersBorder": true,
+      },
+    },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "text/html+skybridge",
+          text: `<html>${showRoutesWidget.html}</html>`,
+          _meta: {
+            "openai/widgetDescription": showRoutesWidget.description,
+            "openai/widgetPrefersBorder": true,
+            "openai/widgetDomain": showRoutesWidget.widgetDomain,
+          },
+        },
+      ],
+    })
+  );
+
+  server.registerResource(
+    "show-polygons-widget",
+    showPolygonsWidget.templateUri,
+    {
+      title: showPolygonsWidget.title,
+      description: showPolygonsWidget.description,
+      mimeType: "text/html+skybridge",
+      _meta: {
+        "openai/widgetDescription": showPolygonsWidget.description,
+        "openai/widgetPrefersBorder": true,
+      },
+    },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "text/html+skybridge",
+          text: `<html>${showPolygonsWidget.html}</html>`,
+          _meta: {
+            "openai/widgetDescription": showPolygonsWidget.description,
+            "openai/widgetPrefersBorder": true,
+            "openai/widgetDomain": showPolygonsWidget.widgetDomain,
           },
         },
       ],
@@ -244,6 +361,116 @@ const handler = createMcpHandler(async (server) => {
           timestamp: new Date().toISOString(),
         },
         _meta: widgetMeta(centerMapWidget),
+      };
+    }
+  );
+
+  server.registerTool(
+    showPOIsWidget.id,
+    {
+      title: showPOIsWidget.title,
+      description: "Display points of interest on the map with custom colors and labels",
+      inputSchema: {
+        pois: z.array(z.object({
+          lat: z.number().describe("Latitude coordinate"),
+          lng: z.number().describe("Longitude coordinate"),
+          name: z.string().describe("POI name"),
+          type: z.string().describe("POI type"),
+          color: z.string().describe("Color for the POI marker"),
+          description: z.string().optional().describe("Optional description")
+        })).describe("Array of points of interest to display"),
+        showLabels: z.boolean().optional().describe("Whether to show text labels on POIs"),
+      },
+      _meta: widgetMeta(showPOIsWidget),
+    },
+    async ({ pois, showLabels = false }) => {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Displaying ${pois.length} points of interest on the map`,
+          },
+        ],
+        structuredContent: {
+          action: "show_pois",
+          pois,
+          showLabels,
+          timestamp: new Date().toISOString(),
+        },
+        _meta: widgetMeta(showPOIsWidget),
+      };
+    }
+  );
+
+  server.registerTool(
+    showRoutesWidget.id,
+    {
+      title: showRoutesWidget.title,
+      description: "Display routes on the map with custom colors and widths",
+      inputSchema: {
+        routes: z.array(z.object({
+          coordinates: z.array(z.array(z.number())).describe("Array of [lng, lat] coordinate pairs"),
+          color: z.string().describe("Color for the route line"),
+          width: z.number().optional().describe("Width of the route line"),
+          name: z.string().optional().describe("Optional route name"),
+          description: z.string().optional().describe("Optional route description")
+        })).describe("Array of routes to display"),
+        showDirections: z.boolean().optional().describe("Whether to show direction arrows"),
+      },
+      _meta: widgetMeta(showRoutesWidget),
+    },
+    async ({ routes, showDirections = false }) => {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Displaying ${routes.length} routes on the map`,
+          },
+        ],
+        structuredContent: {
+          action: "show_routes",
+          routes,
+          showDirections,
+          timestamp: new Date().toISOString(),
+        },
+        _meta: widgetMeta(showRoutesWidget),
+      };
+    }
+  );
+
+  server.registerTool(
+    showPolygonsWidget.id,
+    {
+      title: showPolygonsWidget.title,
+      description: "Display polygons on the map with custom colors and opacity",
+      inputSchema: {
+        polygons: z.array(z.object({
+          coordinates: z.array(z.array(z.array(z.number()))).describe("Array of polygon coordinate rings"),
+          fillColor: z.string().describe("Fill color for the polygon"),
+          strokeColor: z.string().describe("Stroke color for the polygon border"),
+          opacity: z.number().optional().describe("Opacity of the polygon fill"),
+          name: z.string().optional().describe("Optional polygon name"),
+          description: z.string().optional().describe("Optional polygon description")
+        })).describe("Array of polygons to display"),
+        showLabels: z.boolean().optional().describe("Whether to show text labels on polygons"),
+      },
+      _meta: widgetMeta(showPolygonsWidget),
+    },
+    async ({ polygons, showLabels = false }) => {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Displaying ${polygons.length} polygons on the map`,
+          },
+        ],
+        structuredContent: {
+          action: "show_polygons",
+          polygons,
+          showLabels,
+          timestamp: new Date().toISOString(),
+        },
+        _meta: widgetMeta(showPolygonsWidget),
       };
     }
   );

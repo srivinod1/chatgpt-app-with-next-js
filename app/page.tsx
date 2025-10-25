@@ -27,8 +27,30 @@ export default function Home() {
   const mapActionFromStructured = structuredContent?.action ? structuredContent as MapActionData : undefined;
   console.log('Map action from structured:', mapActionFromStructured);
   
+  // Handle show_map tool format (center/zoom without action)
+  let mapActionFromShowMap: MapActionData | undefined = undefined;
+  if (toolOutput && (toolOutput as any).center && !mapAction && !mapActionFromStructured) {
+    const centerStr = (toolOutput as any).center;
+    const zoom = (toolOutput as any).zoom || 12;
+    
+    // Parse center string (e.g., "52.3765,4.9084")
+    if (typeof centerStr === 'string' && centerStr.includes(',')) {
+      const [lat, lng] = centerStr.split(',').map(Number);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        mapActionFromShowMap = {
+          action: 'center_map',
+          latitude: lat,
+          longitude: lng,
+          zoom: zoom,
+          timestamp: new Date().toISOString()
+        };
+        console.log('Created map action from show_map tool:', mapActionFromShowMap);
+      }
+    }
+  }
+  
   // Use the map action from wherever it is
-  const finalMapAction = mapAction || mapActionFromStructured;
+  const finalMapAction = mapAction || mapActionFromStructured || mapActionFromShowMap;
 
   return (
     <div

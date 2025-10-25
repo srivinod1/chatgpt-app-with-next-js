@@ -39,22 +39,49 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
   const getLatestStyleVersion = async (): Promise<string> => {
     const versionsUrl = `https://api.tomtom.com/maps/orbis/assets/styles?key=${apiKey}&apiVersion=${apiVersion}`;
-    const res = await fetch(versionsUrl);
-    const data = await res.json();
+    console.log('Fetching TomTom style versions from:', versionsUrl);
+    
+    try {
+      const res = await fetch(versionsUrl);
+      console.log('TomTom API response status:', res.status, res.statusText);
+      
+      const data = await res.json();
+      console.log('TomTom API response data:', data);
 
-    if (!res.ok || !data.versions?.length) {
-      throw new Error('No available style versions');
+      if (!res.ok || !data.versions?.length) {
+        throw new Error(`TomTom API error: ${res.status} ${res.statusText} - ${JSON.stringify(data)}`);
+      }
+
+      // Return latest version (usually last in list)
+      const version = data.versions[data.versions.length - 1].version;
+      console.log('Using TomTom style version:', version);
+      return version;
+    } catch (error) {
+      console.error('Error fetching TomTom style versions:', error);
+      throw error;
     }
-
-    // Return latest version (usually last in list)
-    return data.versions[data.versions.length - 1].version;
   };
 
   const fetchStyle = async (version: string) => {
     const styleUrl = `https://api.tomtom.com/maps/orbis/assets/styles/${version}/style.json?key=${apiKey}&apiVersion=${apiVersion}&map=basic_street-light`;
-    const res = await fetch(styleUrl);
-    if (!res.ok) throw new Error('Failed to fetch style JSON');
-    return await res.json();
+    console.log('Fetching TomTom style from:', styleUrl);
+    
+    try {
+      const res = await fetch(styleUrl);
+      console.log('TomTom style response status:', res.status, res.statusText);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`TomTom style fetch failed: ${res.status} ${res.statusText} - ${errorText}`);
+      }
+      
+      const style = await res.json();
+      console.log('TomTom style loaded successfully');
+      return style;
+    } catch (error) {
+      console.error('Error fetching TomTom style:', error);
+      throw error;
+    }
   };
 
   const addFeaturesToMap = async (geojsonData: ParsedAIResponse['geojson']) => {
@@ -642,7 +669,9 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         });
       } catch (err: any) {
         console.error('Map load error:', err);
-        setError(err.message || 'Unknown error loading map.');
+        const errorMessage = err.message || 'Unknown error loading map.';
+        console.error('Setting error state:', errorMessage);
+        setError(errorMessage);
         setIsLoading(false);
       }
     };
