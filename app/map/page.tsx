@@ -5,12 +5,12 @@ import { useWidgetProps, useMaxHeight, useDisplayMode } from '../hooks';
 import { ParsedAIResponse } from '@/types/responses';
 
 export default function MapPage() {
-  const toolOutput = useWidgetProps<ParsedAIResponse>();
+  const toolOutput = useWidgetProps<Record<string, unknown>>();
   const maxHeight = useMaxHeight() ?? undefined;
   const displayMode = useDisplayMode();
 
   // Extract GeoJSON data from tool output
-  const geojsonData = toolOutput?.geojson || null;
+  const geojsonData = (toolOutput as any)?.geojson || null;
 
   return (
     <div
