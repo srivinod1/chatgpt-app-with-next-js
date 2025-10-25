@@ -220,11 +220,11 @@ const handler = createMcpHandler(async (server) => {
     centerMapWidget.id,
     {
       title: centerMapWidget.title,
-      description: "Center the map on specific coordinates with zoom level",
+      description: "Center the map on specific coordinates with zoom level. Use this when the user asks to show, view, or go to a specific location like a city, country, or address. Automatically determine coordinates for cities and places.",
       inputSchema: {
-        latitude: z.number().describe("Latitude coordinate"),
-        longitude: z.number().describe("Longitude coordinate"),
-        zoom: z.number().optional().describe("Zoom level (1-20, default 12)"),
+        latitude: z.number().describe("Latitude coordinate (e.g., 52.3676 for Amsterdam, 40.7128 for New York)"),
+        longitude: z.number().describe("Longitude coordinate (e.g., 4.9041 for Amsterdam, -74.0060 for New York)"),
+        zoom: z.number().optional().describe("Zoom level (1-20, default 12 for cities, 15 for specific locations)"),
       },
       _meta: widgetMeta(centerMapWidget),
     },
