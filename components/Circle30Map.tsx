@@ -13,6 +13,7 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const apiKey = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
   const apiVersion = 1;
@@ -254,11 +255,17 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
 
     const loadMap = async () => {
       try {
+        // Ensure container is ready
+        if (!mapContainer.current) {
+          console.error('Map container not ready');
+          return;
+        }
+
         const version = await getLatestStyleVersion();
         const style = await fetchStyle(version);
 
         const map = new maplibregl.Map({
-          container: mapContainer.current!,
+          container: mapContainer.current,
           style,
           center: [-97.7431, 30.2672], // Default to Austin
           zoom: 12
@@ -266,6 +273,7 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
         mapRef.current = map;
+        setIsLoading(false);
 
         // Wait for map to load before adding features
         map.on('load', () => {
@@ -276,12 +284,15 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
       } catch (err: any) {
         console.error('Map load error:', err);
         setError(err.message || 'Unknown error loading map.');
+        setIsLoading(false);
       }
     };
 
-    loadMap();
+    // Add a small delay to ensure DOM is ready
+    const timeoutId = setTimeout(loadMap, 100);
 
     return () => {
+      clearTimeout(timeoutId);
       mapRef.current?.remove();
     };
   }, []); // Initial map load
@@ -320,7 +331,19 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
           Map error: {error}
         </div>
       )}
-      <div ref={mapContainer} className="w-full h-full" />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#0F172A] z-40">
+          <div className="text-white text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+            <p>Loading map...</p>
+          </div>
+        </div>
+      )}
+      <div 
+        ref={mapContainer} 
+        className="w-full h-full" 
+        style={{ minHeight: '400px' }}
+      />
     </div>
   );
 }
