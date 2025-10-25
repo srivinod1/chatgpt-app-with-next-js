@@ -18,6 +18,17 @@ export default function Home() {
   // Debug logging
   console.log('Tool output:', toolOutput);
   console.log('Map action:', mapAction);
+  
+  // Also check structuredContent for map actions
+  const structuredContent = (toolOutput as any)?.structuredContent;
+  console.log('Structured content:', structuredContent);
+  
+  // Check if action is in structuredContent
+  const mapActionFromStructured = structuredContent?.action ? structuredContent as MapActionData : undefined;
+  console.log('Map action from structured:', mapActionFromStructured);
+  
+  // Use the map action from wherever it is
+  const finalMapAction = mapAction || mapActionFromStructured;
 
   return (
     <div
@@ -32,7 +43,7 @@ export default function Home() {
       </header>
 
       <div className="flex-1 relative">
-        <Circle30Map geojsonData={geojsonData} mapAction={mapAction} />
+        <Circle30Map geojsonData={geojsonData} mapAction={finalMapAction} />
       </div>
     </div>
   );
