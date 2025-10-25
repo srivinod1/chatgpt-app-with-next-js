@@ -17,6 +17,24 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
   const apiKey = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
   const apiVersion = 1;
 
+  // Show error if API key is missing
+  if (!apiKey) {
+    console.error('TomTom API key is missing!');
+    return (
+      <div style={{ width: '100%', height: '100%', backgroundColor: '#0F172A', position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="text-center p-8 bg-gray-800 rounded-lg max-w-md">
+          <h3 className="text-xl font-bold text-red-400 mb-4">Map Configuration Required</h3>
+          <p className="text-gray-300 mb-4">
+            TomTom API key is not configured. Please add <code className="bg-gray-700 px-2 py-1 rounded">NEXT_PUBLIC_TOMTOM_API_KEY</code> to your environment variables.
+          </p>
+          <p className="text-sm text-gray-400">
+            The map will work once the API key is properly configured in Vercel.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const getLatestStyleVersion = async (): Promise<string> => {
     const versionsUrl = `https://api.tomtom.com/maps/orbis/assets/styles?key=${apiKey}&apiVersion=${apiVersion}`;
     const res = await fetch(versionsUrl);
