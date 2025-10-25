@@ -13,7 +13,7 @@ export default function Home() {
   const geojsonData = (toolOutput as any)?.geojson || null;
   
   // Extract map action from tool output
-  const mapAction = (toolOutput as any) as MapActionData | null;
+  const mapAction = (toolOutput as any)?.action ? (toolOutput as any) as MapActionData : undefined;
 
   return (
     <div
