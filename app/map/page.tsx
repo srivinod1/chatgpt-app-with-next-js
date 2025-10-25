@@ -1,0 +1,32 @@
+"use client";
+
+import Circle30Map from '@/components/Circle30Map';
+import { useWidgetProps, useMaxHeight, useDisplayMode } from '../hooks';
+import { ParsedAIResponse } from '@/types/responses';
+
+export default function MapPage() {
+  const toolOutput = useWidgetProps<Record<string, unknown>>();
+  const maxHeight = useMaxHeight() ?? undefined;
+  const displayMode = useDisplayMode();
+
+  // Extract GeoJSON data from tool output
+  const geojsonData = (toolOutput as any)?.geojson || null;
+
+  return (
+    <div
+      className="font-sans h-screen flex flex-col bg-[#0F172A] text-[#E2E8F0] relative overflow-hidden"
+      style={{
+        maxHeight,
+        height: displayMode === "fullscreen" ? maxHeight : undefined,
+      }}
+    >
+      <header className="p-4 border-b border-[#1E293B] text-xl font-bold z-50 bg-[#0F172A]">
+        Interactive Map Visualization
+      </header>
+
+      <div className="flex-1 relative">
+        <Circle30Map geojsonData={geojsonData} />
+      </div>
+    </div>
+  );
+}
