@@ -14,6 +14,10 @@ export default function Home() {
   
   // Extract map action from tool output
   const mapAction = (toolOutput as any)?.action ? (toolOutput as any) as MapActionData : undefined;
+  
+  // Debug logging
+  console.log('Tool output:', toolOutput);
+  console.log('Map action:', mapAction);
 
   return (
     <div
