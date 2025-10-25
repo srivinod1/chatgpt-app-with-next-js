@@ -647,12 +647,21 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           }
         });
 
-        // Use default coordinates, but they will be overridden by mapAction if provided
+        // Determine initial center and zoom based on mapAction
+        let initialCenter: [number, number] = [-97.7431, 30.2672]; // Default to Austin
+        let initialZoom = 12;
+        
+        if (mapAction && mapAction.action === 'center_map') {
+          initialCenter = [mapAction.longitude, mapAction.latitude];
+          initialZoom = mapAction.zoom;
+          console.log('Using mapAction for initial center:', initialCenter, 'zoom:', initialZoom);
+        }
+
         const map = new maplibregl.Map({
           container: container,
           style,
-          center: [-97.7431, 30.2672], // Default to Austin - will be overridden by mapAction
-          zoom: 12
+          center: initialCenter,
+          zoom: initialZoom
         });
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
