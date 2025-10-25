@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ParsedAIResponse } from '@/types/responses';
@@ -10,9 +10,10 @@ interface Circle30MapProps {
 }
 
 export default function Circle30Map({ geojsonData }: Circle30MapProps) {
-  const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [containerReady, setContainerReady] = useState(false);
 
   const apiKey = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
   const apiVersion = 1;
@@ -250,16 +251,94 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
     }
   };
 
+  // Callback ref to ensure container is ready
+  const mapContainerRef = useCallback((node: HTMLDivElement | null) => {
+    console.log('Map container ref callback:', { 
+      node, 
+      hasMap: !!mapRef.current,
+      nodeDimensions: node ? { width: node.offsetWidth, height: node.offsetHeight } : null,
+      documentReady: document.readyState,
+      iframeContext: window !== window.top
+    });
+    if (node && !mapRef.current) {
+      console.log('Setting container ready to true');
+      // Add a small delay to ensure iframe is fully ready
+      setTimeout(() => {
+        setContainerReady(true);
+      }, 100);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!mapContainer.current) return;
+    if (!containerReady) {
+      console.log('Container not ready yet, waiting...');
+      return;
+    }
 
     const loadMap = async () => {
       try {
+        console.log('Starting map load process...');
+        
+        // Wait for iframe to be fully ready (ChatGPT environment)
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
         const version = await getLatestStyleVersion();
         const style = await fetchStyle(version);
 
+        // Find the container element with multiple fallback strategies
+        let container = document.querySelector('[data-map-container]') as HTMLDivElement;
+        
+        if (!container) {
+          // Fallback: try to find by ref
+          console.log('Container not found by data attribute, trying fallback...');
+          container = document.querySelector('.map-container') as HTMLDivElement;
+        }
+        
+        if (!container) {
+          // Last resort: wait a bit and try again
+          console.log('Container still not found, waiting 200ms and retrying...');
+          await new Promise(resolve => setTimeout(resolve, 200));
+          container = document.querySelector('[data-map-container]') as HTMLDivElement;
+        }
+
+        if (!container) {
+          console.error('Map container not found after all attempts');
+          setError('Map container not found - please refresh the page');
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('Container found, initializing map:', {
+          container: container,
+          containerId: container.id,
+          containerClass: container.className,
+          containerDimensions: {
+            width: container.offsetWidth,
+            height: container.offsetHeight
+          },
+          documentReady: document.readyState,
+          iframeContext: window !== window.top
+        });
+
+        // Ensure container has proper dimensions
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+          console.log('Container has zero dimensions, setting minimum size');
+          container.style.minWidth = '400px';
+          container.style.minHeight = '400px';
+          // Wait a bit more for dimensions to be set
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // Final check before creating map
+        if (!container || container.offsetWidth === 0 || container.offsetHeight === 0) {
+          console.error('Container still invalid after dimension fix');
+          setError('Map container dimensions invalid');
+          setIsLoading(false);
+          return;
+        }
+
         const map = new maplibregl.Map({
-          container: mapContainer.current!,
+          container: container,
           style,
           center: [-97.7431, 30.2672], // Default to Austin
           zoom: 12
@@ -267,6 +346,8 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
         mapRef.current = map;
+        setIsLoading(false);
+        console.log('Map initialized successfully');
 
         // Wait for map to load before adding features
         map.on('load', () => {
@@ -278,6 +359,7 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
       } catch (err: any) {
         console.error('Map load error:', err);
         setError(err.message || 'Unknown error loading map.');
+        setIsLoading(false);
       }
     };
 
@@ -285,11 +367,12 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
 
     return () => {
       if (mapRef.current) {
+        console.log('Cleaning up map instance');
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [containerReady]); // Load when container is ready
 
   // Handle visualization updates
   useEffect(() => {
@@ -325,7 +408,18 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
           Map error: {error}
         </div>
       )}
-      <div ref={mapContainer} className="w-full h-full" style={{ minHeight: '400px' }} />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#0F172A] z-40">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading map...</p>
+        </div>
+      )}
+      <div 
+        ref={mapContainerRef}
+        data-map-container
+        className="w-full h-full map-container" 
+        style={{ minHeight: '400px' }}
+      />
     </div>
   );
 }
