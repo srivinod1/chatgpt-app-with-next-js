@@ -254,23 +254,33 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
   // Handle map centering
   const centerMap = (latitude: number, longitude: number, zoom: number) => {
+    console.log('=== CENTER MAP CALLED ===', { latitude, longitude, zoom });
+    
     if (!mapRef.current) {
       console.log('Map not ready for centering, waiting...');
       return;
     }
     
     console.log('Centering map:', { latitude, longitude, zoom });
+    console.log('Map current center before:', mapRef.current.getCenter());
+    console.log('Map current zoom before:', mapRef.current.getZoom());
     
     // Ensure map is fully loaded before centering
     if (mapRef.current.loaded()) {
+      console.log('Map is loaded, centering now');
       mapRef.current.setCenter([longitude, latitude]);
       mapRef.current.setZoom(zoom);
+      console.log('Map center after:', mapRef.current.getCenter());
+      console.log('Map zoom after:', mapRef.current.getZoom());
     } else {
+      console.log('Map not loaded yet, waiting for load event');
       // Wait for map to load before centering
       mapRef.current.once('load', () => {
         console.log('Map loaded, now centering');
         mapRef.current!.setCenter([longitude, latitude]);
         mapRef.current!.setZoom(zoom);
+        console.log('Map center after load:', mapRef.current!.getCenter());
+        console.log('Map zoom after load:', mapRef.current!.getZoom());
       });
     }
   };
@@ -610,10 +620,11 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           }
         });
 
+        // Use default coordinates, but they will be overridden by mapAction if provided
         const map = new maplibregl.Map({
           container: container,
           style,
-          center: [-97.7431, 30.2672], // Default to Austin
+          center: [-97.7431, 30.2672], // Default to Austin - will be overridden by mapAction
           zoom: 12
         });
 
