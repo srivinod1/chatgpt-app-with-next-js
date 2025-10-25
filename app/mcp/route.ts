@@ -39,7 +39,18 @@ const handler = createMcpHandler(async (server) => {
     invoked: "Content loaded",
     html: html,
     description: "Displays the homepage content",
-    widgetDomain: "https://nextjs.org/docs",
+    widgetDomain: "https://chatgpt-app-with-next-js-tan-theta.vercel.app",
+  };
+
+  const mapWidget: ContentWidget = {
+    id: "show_map",
+    title: "Show Interactive Map",
+    templateUri: "ui://widget/map-template.html",
+    invoking: "Loading map...",
+    invoked: "Map loaded",
+    html: html,
+    description: "Displays an interactive map with GeoJSON data visualization",
+    widgetDomain: "https://chatgpt-app-with-next-js-tan-theta.vercel.app",
   };
   server.registerResource(
     "content-widget",
@@ -63,6 +74,34 @@ const handler = createMcpHandler(async (server) => {
             "openai/widgetDescription": contentWidget.description,
             "openai/widgetPrefersBorder": true,
             "openai/widgetDomain": contentWidget.widgetDomain,
+          },
+        },
+      ],
+    })
+  );
+
+  server.registerResource(
+    "map-widget",
+    mapWidget.templateUri,
+    {
+      title: mapWidget.title,
+      description: mapWidget.description,
+      mimeType: "text/html+skybridge",
+      _meta: {
+        "openai/widgetDescription": mapWidget.description,
+        "openai/widgetPrefersBorder": true,
+      },
+    },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "text/html+skybridge",
+          text: `<html>${mapWidget.html}</html>`,
+          _meta: {
+            "openai/widgetDescription": mapWidget.description,
+            "openai/widgetPrefersBorder": true,
+            "openai/widgetDomain": mapWidget.widgetDomain,
           },
         },
       ],
@@ -93,6 +132,46 @@ const handler = createMcpHandler(async (server) => {
           timestamp: new Date().toISOString(),
         },
         _meta: widgetMeta(contentWidget),
+      };
+    }
+  );
+
+  server.registerTool(
+    mapWidget.id,
+    {
+      title: mapWidget.title,
+      description: "Display an interactive map with optional GeoJSON data visualization",
+      inputSchema: {
+        geojson: z.string().optional().describe("GeoJSON data to display on the map"),
+        center: z.string().optional().describe("Map center coordinates (e.g., 'lat,lng')"),
+        zoom: z.number().optional().describe("Map zoom level"),
+      },
+      _meta: widgetMeta(mapWidget),
+    },
+    async ({ geojson, center, zoom }) => {
+      let parsedGeojson = null;
+      if (geojson) {
+        try {
+          parsedGeojson = JSON.parse(geojson);
+        } catch (error) {
+          console.error('Failed to parse GeoJSON:', error);
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Interactive map loaded${parsedGeojson ? ` with ${parsedGeojson.features?.length || 0} features` : ''}`,
+          },
+        ],
+        structuredContent: {
+          geojson: parsedGeojson,
+          center: center,
+          zoom: zoom,
+          timestamp: new Date().toISOString(),
+        },
+        _meta: widgetMeta(mapWidget),
       };
     }
   );
