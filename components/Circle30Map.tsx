@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { ParsedAIResponse } from '@/types/responses';
+import { ParsedAIResponse, MapActionData } from '@/types/responses';
 
 interface Circle30MapProps {
   geojsonData?: ParsedAIResponse['geojson'];
+  mapAction?: MapActionData;
 }
 
-export default function Circle30Map({ geojsonData }: Circle30MapProps) {
+export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -251,6 +252,237 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
     }
   };
 
+  // Handle map centering
+  const centerMap = (latitude: number, longitude: number, zoom: number) => {
+    if (!mapRef.current) return;
+    
+    console.log('Centering map:', { latitude, longitude, zoom });
+    mapRef.current.setCenter([longitude, latitude]);
+    mapRef.current.setZoom(zoom);
+  };
+
+  // Handle POI display
+  const addPOIs = (pois: any[], showLabels: boolean) => {
+    if (!mapRef.current) return;
+
+    console.log('Adding POIs:', pois.length);
+    
+    // Remove existing POI source if it exists
+    if (mapRef.current.getSource('pois')) {
+      if (mapRef.current.getLayer('pois-circles')) {
+        mapRef.current.removeLayer('pois-circles');
+      }
+      if (mapRef.current.getLayer('pois-labels')) {
+        mapRef.current.removeLayer('pois-labels');
+      }
+      mapRef.current.removeSource('pois');
+    }
+
+    // Create GeoJSON for POIs
+    const poiGeoJSON = {
+      type: 'FeatureCollection',
+      features: pois.map((poi, index) => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [poi.lng, poi.lat]
+        },
+        properties: {
+          id: index,
+          name: poi.name,
+          type: poi.type,
+          color: poi.color,
+          description: poi.description || ''
+        }
+      }))
+    };
+
+    // Add POI source
+    mapRef.current.addSource('pois', {
+      type: 'geojson',
+      data: poiGeoJSON
+    });
+
+    // Add POI circles
+    mapRef.current.addLayer({
+      id: 'pois-circles',
+      type: 'circle',
+      source: 'pois',
+      paint: {
+        'circle-color': ['get', 'color'],
+        'circle-radius': 8,
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#fff'
+      }
+    });
+
+    // Add POI labels if requested
+    if (showLabels) {
+      mapRef.current.addLayer({
+        id: 'pois-labels',
+        type: 'symbol',
+        source: 'pois',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+          'text-offset': [0, 2],
+          'text-anchor': 'top',
+          'text-size': 12
+        },
+        paint: {
+          'text-color': '#000',
+          'text-halo-color': '#fff',
+          'text-halo-width': 2
+        }
+      });
+    }
+  };
+
+  // Handle route display
+  const addRoutes = (routes: any[], showDirections: boolean) => {
+    if (!mapRef.current) return;
+
+    console.log('Adding routes:', routes.length);
+
+    routes.forEach((route, index) => {
+      const sourceId = `route-${index}`;
+      const layerId = `route-line-${index}`;
+      
+      // Remove existing route if it exists
+      if (mapRef.current!.getSource(sourceId)) {
+        if (mapRef.current!.getLayer(layerId)) {
+          mapRef.current!.removeLayer(layerId);
+        }
+        mapRef.current!.removeSource(sourceId);
+      }
+
+      // Create GeoJSON for route
+      const routeGeoJSON = {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: route.coordinates
+        },
+        properties: {
+          name: route.name || `Route ${index + 1}`,
+          color: route.color,
+          width: route.width
+        }
+      };
+
+      // Add route source
+      mapRef.current!.addSource(sourceId, {
+        type: 'geojson',
+        data: routeGeoJSON
+      });
+
+      // Add route line
+      mapRef.current!.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': route.color,
+          'line-width': route.width || 4
+        }
+      });
+    });
+  };
+
+  // Handle polygon display
+  const addPolygons = (polygons: any[], showLabels: boolean) => {
+    if (!mapRef.current) return;
+
+    console.log('Adding polygons:', polygons.length);
+
+    polygons.forEach((polygon, index) => {
+      const sourceId = `polygon-${index}`;
+      const fillLayerId = `polygon-fill-${index}`;
+      const strokeLayerId = `polygon-stroke-${index}`;
+      const labelLayerId = `polygon-label-${index}`;
+      
+      // Remove existing polygon if it exists
+      if (mapRef.current!.getSource(sourceId)) {
+        if (mapRef.current!.getLayer(fillLayerId)) {
+          mapRef.current!.removeLayer(fillLayerId);
+        }
+        if (mapRef.current!.getLayer(strokeLayerId)) {
+          mapRef.current!.removeLayer(strokeLayerId);
+        }
+        if (mapRef.current!.getLayer(labelLayerId)) {
+          mapRef.current!.removeLayer(labelLayerId);
+        }
+        mapRef.current!.removeSource(sourceId);
+      }
+
+      // Create GeoJSON for polygon
+      const polygonGeoJSON = {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: polygon.coordinates
+        },
+        properties: {
+          name: polygon.name || `Polygon ${index + 1}`,
+          fillColor: polygon.fillColor,
+          strokeColor: polygon.strokeColor,
+          opacity: polygon.opacity
+        }
+      };
+
+      // Add polygon source
+      mapRef.current!.addSource(sourceId, {
+        type: 'geojson',
+        data: polygonGeoJSON
+      });
+
+      // Add polygon fill
+      mapRef.current!.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': polygon.fillColor,
+          'fill-opacity': polygon.opacity || 0.7
+        }
+      });
+
+      // Add polygon stroke
+      mapRef.current!.addLayer({
+        id: strokeLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': polygon.strokeColor,
+          'line-width': 2
+        }
+      });
+
+      // Add polygon labels if requested
+      if (showLabels && polygon.name) {
+        mapRef.current!.addLayer({
+          id: labelLayerId,
+          type: 'symbol',
+          source: sourceId,
+          layout: {
+            'text-field': polygon.name,
+            'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+            'text-size': 14
+          },
+          paint: {
+            'text-color': '#000',
+            'text-halo-color': '#fff',
+            'text-halo-width': 2
+          }
+        });
+      }
+    });
+  };
+
   // Callback ref to ensure container is ready
   const mapContainerRef = useCallback((node: HTMLDivElement | null) => {
     console.log('Map container ref callback:', { 
@@ -400,6 +632,42 @@ export default function Circle30Map({ geojsonData }: Circle30MapProps) {
       }
     }
   }, [geojsonData]);
+
+  // Handle map actions
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && mapAction) {
+      console.log('Received map action:', mapAction);
+      
+      if (map.isStyleLoaded()) {
+        handleMapAction(mapAction);
+      } else {
+        map.once('style.load', () => {
+          console.log('Style loaded, executing map action');
+          handleMapAction(mapAction);
+        });
+      }
+    }
+  }, [mapAction]);
+
+  const handleMapAction = (action: MapActionData) => {
+    switch (action.action) {
+      case 'center_map':
+        centerMap(action.latitude, action.longitude, action.zoom);
+        break;
+      case 'show_pois':
+        addPOIs(action.pois, action.showLabels);
+        break;
+      case 'show_routes':
+        addRoutes(action.routes, action.showDirections);
+        break;
+      case 'show_polygons':
+        addPolygons(action.polygons, action.showLabels);
+        break;
+      default:
+        console.warn('Unknown map action:', action);
+    }
+  };
 
   return (
     <div style={{ width: '100%', height: '100%', backgroundColor: '#0F172A', position: 'absolute', inset: 0 }}>

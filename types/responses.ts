@@ -25,6 +25,65 @@ export interface ParsedAIResponse {
   }> | null;
 }
 
+// Map action types
+export interface MapAction {
+  action: 'center_map' | 'show_pois' | 'show_routes' | 'show_polygons';
+  timestamp: string;
+}
+
+export interface CenterMapAction extends MapAction {
+  action: 'center_map';
+  latitude: number;
+  longitude: number;
+  zoom: number;
+}
+
+export interface POI {
+  lat: number;
+  lng: number;
+  name: string;
+  type: string;
+  color: string;
+  description?: string;
+}
+
+export interface ShowPOIsAction extends MapAction {
+  action: 'show_pois';
+  pois: POI[];
+  showLabels: boolean;
+}
+
+export interface Route {
+  coordinates: [number, number][];
+  color: string;
+  width: number;
+  name?: string;
+  description?: string;
+}
+
+export interface ShowRoutesAction extends MapAction {
+  action: 'show_routes';
+  routes: Route[];
+  showDirections: boolean;
+}
+
+export interface MapPolygon {
+  coordinates: [number, number][][];
+  fillColor: string;
+  strokeColor: string;
+  opacity: number;
+  name?: string;
+  description?: string;
+}
+
+export interface ShowPolygonsAction extends MapAction {
+  action: 'show_polygons';
+  polygons: MapPolygon[];
+  showLabels: boolean;
+}
+
+export type MapActionData = CenterMapAction | ShowPOIsAction | ShowRoutesAction | ShowPolygonsAction;
+
 export interface ZipCodeFeature {
   type: "Feature";
   geometry: {

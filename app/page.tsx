@@ -2,7 +2,7 @@
 
 import Circle30Map from '@/components/Circle30Map';
 import { useWidgetProps, useMaxHeight, useDisplayMode } from './hooks';
-import { ParsedAIResponse } from '@/types/responses';
+import { ParsedAIResponse, MapActionData } from '@/types/responses';
 
 export default function Home() {
   const toolOutput = useWidgetProps<Record<string, unknown>>();
@@ -11,6 +11,9 @@ export default function Home() {
 
   // Extract GeoJSON data from tool output
   const geojsonData = (toolOutput as any)?.geojson || null;
+  
+  // Extract map action from tool output
+  const mapAction = (toolOutput as any) as MapActionData | null;
 
   return (
     <div
@@ -25,7 +28,7 @@ export default function Home() {
       </header>
 
       <div className="flex-1 relative">
-        <Circle30Map geojsonData={geojsonData} />
+        <Circle30Map geojsonData={geojsonData} mapAction={mapAction} />
       </div>
     </div>
   );
