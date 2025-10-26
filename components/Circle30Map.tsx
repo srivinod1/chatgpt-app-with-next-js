@@ -683,7 +683,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         }
 
         const map = new maplibregl.Map({
-          container: container,
+          container: 'map-container', // Use string ID instead of DOM element for iframe compatibility
           style,
           center: initialCenter,
           zoom: initialZoom
