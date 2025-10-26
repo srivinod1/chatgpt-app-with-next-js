@@ -819,10 +819,11 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           <p>Loading map...</p>
         </div>
       )}
-      <div 
+      <div
+        id="map-container"
         ref={mapContainerRef}
         data-map-container
-        className="w-full h-full map-container" 
+        className="w-full h-full map-container"
         style={{ minHeight: '400px' }}
       />
     </div>
