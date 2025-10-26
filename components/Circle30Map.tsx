@@ -658,6 +658,10 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           if (geojsonData) {
             addFeaturesToMap(geojsonData);
           }
+          if (mapAction) {
+            console.log('Processing mapAction after map load:', mapAction);
+            handleMapAction(mapAction);
+          }
         });
       } catch (err: any) {
         console.error('Map load error:', err);
