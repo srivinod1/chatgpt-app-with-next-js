@@ -431,11 +431,11 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     }
   };
 
-  // Handle route display with Google Maps style - fetches route from TomTom API
-  const addRoutes = async (routeRequest: any) => {
+  // Handle route display with Google Maps style - route data comes from server
+  const addRoutes = (routeData: any) => {
     if (!mapRef.current) return;
 
-    console.log('Fetching route from TomTom API...');
+    console.log('Rendering route on map...');
 
     // Clear existing route markers
     markersRef.current.forEach(marker => {
@@ -449,28 +449,15 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
       return el && !el.classList.contains('route-marker') && !el.classList.contains('route-info');
     });
 
-    const { source, destination, mode = 'car' } = routeRequest;
+    const { source, destination, mode, coordinates, distance, duration } = routeData;
 
-    // Call TomTom Orbis Routing API
-    try {
-      const routingApiUrl = `https://api.tomtom.com/orbis/routing/route/json?key=${apiKey}&apiVersion=1&locations=${source.lng},${source.lat}:${destination.lng},${destination.lat}&travelMode=${mode}`;
+    // Check if route data exists
+    if (!coordinates || coordinates.length === 0) {
+      console.error('No route coordinates available');
+      return;
+    }
 
-      console.log('Calling TomTom Orbis Routing API:', routingApiUrl);
-
-      const response = await fetch(routingApiUrl);
-      const data = await response.json();
-
-      if (!data.routes || data.routes.length === 0) {
-        console.error('No route found');
-        return;
-      }
-
-      const route = data.routes[0];
-      const coordinates = route.legs[0].points.map((point: any) => [point.longitude, point.latitude]);
-      const distanceKm = (route.summary.lengthInMeters / 1000).toFixed(1);
-      const durationMin = Math.round(route.summary.travelTimeInSeconds / 60);
-
-      console.log(`Route found: ${distanceKm} km, ${durationMin} min`);
+    console.log(`Rendering route: ${distance}, ${duration}`);
 
       const bounds = new maplibregl.LngLatBounds();
       const index = 0;
@@ -619,8 +606,8 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         white-space: nowrap;
       `;
       infoEl.innerHTML = `
-        <div style="color: #4285F4; font-size: 11px; margin-bottom: 2px;">${mode.toUpperCase()}</div>
-        <div>${distanceKm} km • ${durationMin} min</div>
+        <div style="color: #4285F4; font-size: 11px; margin-bottom: 2px;">${mode?.toUpperCase() || 'CAR'}</div>
+        <div>${distance} • ${duration}</div>
       `;
 
       const infoMarker = new maplibregl.Marker({ element: infoEl })
@@ -629,13 +616,10 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
       markersRef.current.push(infoMarker);
 
-      // Fit map to show entire route
-      if (!bounds.isEmpty()) {
-        mapRef.current!.fitBounds(bounds, { padding: 80, maxZoom: 15 });
-        console.log('Auto-fitted map bounds to show route');
-      }
-    } catch (error) {
-      console.error('Error fetching route from TomTom API:', error);
+    // Fit map to show entire route
+    if (!bounds.isEmpty()) {
+      mapRef.current!.fitBounds(bounds, { padding: 80, maxZoom: 15 });
+      console.log('Auto-fitted map bounds to show route');
     }
   };
 
@@ -963,7 +947,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         addPOIs(action.pois, action.showLabels);
         break;
       case 'show_routes':
-        addRoutes({ source: action.source, destination: action.destination, mode: action.mode });
+        addRoutes(action);
         break;
       case 'show_polygons':
         addPolygons(action.polygons, action.showLabels);

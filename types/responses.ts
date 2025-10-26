@@ -74,6 +74,10 @@ export interface ShowRoutesAction extends MapAction {
     name: string;
   };
   mode?: 'car' | 'pedestrian' | 'bicycle';
+  coordinates?: [number, number][];
+  distance?: string;
+  duration?: string;
+  error?: string;
 }
 
 export interface MapPolygon {

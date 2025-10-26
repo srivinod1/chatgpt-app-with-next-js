@@ -423,22 +423,64 @@ const handler = createMcpHandler(async (server) => {
       _meta: widgetMeta(showRoutesWidget),
     },
     async ({ source, destination, mode = 'car' }) => {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Calculating route from ${source.name} to ${destination.name}`,
+      // Call TomTom Orbis Routing API server-side to avoid CORS
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
+        const routingApiUrl = `https://api.tomtom.com/routing/1/calculateRoute/${source.lat},${source.lng}:${destination.lat},${destination.lng}/json?key=${apiKey}&travelMode=${mode}`;
+
+        console.log('Calling TomTom Routing API server-side:', routingApiUrl);
+
+        const response = await fetch(routingApiUrl);
+        const data = await response.json();
+
+        if (!data.routes || data.routes.length === 0) {
+          throw new Error('No route found');
+        }
+
+        const route = data.routes[0];
+        const coordinates = route.legs[0].points.map((point: any) => [point.longitude, point.latitude]);
+        const distanceKm = (route.summary.lengthInMeters / 1000).toFixed(1);
+        const durationMin = Math.round(route.summary.travelTimeInSeconds / 60);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Route found: ${distanceKm} km, ${durationMin} min via ${mode}`,
+            },
+          ],
+          structuredContent: {
+            action: "show_routes",
+            source,
+            destination,
+            mode,
+            coordinates,
+            distance: `${distanceKm} km`,
+            duration: `${durationMin} min`,
+            timestamp: new Date().toISOString(),
           },
-        ],
-        structuredContent: {
-          action: "show_routes",
-          source,
-          destination,
-          mode,
-          timestamp: new Date().toISOString(),
-        },
-        _meta: widgetMeta(showRoutesWidget),
-      };
+          _meta: widgetMeta(showRoutesWidget),
+        };
+      } catch (error) {
+        console.error('Error fetching route:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to calculate route from ${source.name} to ${destination.name}`,
+            },
+          ],
+          structuredContent: {
+            action: "show_routes",
+            source,
+            destination,
+            mode,
+            error: 'Failed to fetch route',
+            timestamp: new Date().toISOString(),
+          },
+          _meta: widgetMeta(showRoutesWidget),
+        };
+      }
     }
   );
 
