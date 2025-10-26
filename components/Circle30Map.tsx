@@ -350,7 +350,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     validPOIs.forEach((poi) => {
       const color = '#EA4335'; // Always use Google Maps red for all markers
 
-      // Create marker element with label above
+      // Create marker element with label that shows on hover
       const el = document.createElement('div');
       el.className = 'custom-marker';
       el.style.cssText = `
@@ -358,18 +358,26 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         flex-direction: column;
         align-items: center;
         cursor: pointer;
+        position: relative;
       `;
       el.innerHTML = `
-        <div style="
+        <div class="marker-label" style="
           background: white;
           color: #333;
-          padding: 4px 8px;
+          padding: 6px 10px;
           border-radius: 4px;
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 600;
           white-space: nowrap;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          margin-bottom: 2px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          margin-bottom: 4px;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          pointer-events: none;
+          position: absolute;
+          bottom: 45px;
+          left: 50%;
+          transform: translateX(-50%);
         ">${poi.name || 'Unknown'}</div>
         <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
           <path d="M15 0C9.477 0 5 4.477 5 10c0 7.5 10 20 10 20s10-12.5 10-20c0-5.523-4.477-10-10-10z"
@@ -379,6 +387,16 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           <circle cx="15" cy="10" r="4" fill="#fff"/>
         </svg>
       `;
+
+      // Show label on hover
+      el.addEventListener('mouseenter', () => {
+        const label = el.querySelector('.marker-label') as HTMLElement;
+        if (label) label.style.opacity = '1';
+      });
+      el.addEventListener('mouseleave', () => {
+        const label = el.querySelector('.marker-label') as HTMLElement;
+        if (label) label.style.opacity = '0';
+      });
 
       // Create marker
       const marker = new maplibregl.Marker({ element: el })

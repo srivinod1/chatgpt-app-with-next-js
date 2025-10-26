@@ -62,7 +62,7 @@ export default function Home() {
       }}
     >
       <header className="p-4 border-b border-[#1E293B] text-xl font-bold z-50 bg-[#0F172A]">
-        Interactive Map Visualization [BUILD: 2025-10-26-LABELS-TOP]
+        Interactive Map Visualization [BUILD: 2025-10-26-HOVER-LABELS]
       </header>
 
       <div className="flex-1 relative">
