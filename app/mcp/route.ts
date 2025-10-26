@@ -406,31 +406,38 @@ const handler = createMcpHandler(async (server) => {
     showRoutesWidget.id,
     {
       title: showRoutesWidget.title,
-      description: "Display routes on the map with custom colors and widths",
+      description: "Display routes on the map like Google Maps with source/destination markers, distance, and travel time. Use this when user asks for directions, routes, or 'how to get from A to B'.",
       inputSchema: {
         routes: z.array(z.object({
-          coordinates: z.array(z.array(z.number())).describe("Array of [lng, lat] coordinate pairs"),
-          color: z.string().describe("Color for the route line"),
-          width: z.number().optional().describe("Width of the route line"),
-          name: z.string().optional().describe("Optional route name"),
-          description: z.string().optional().describe("Optional route description")
-        })).describe("Array of routes to display"),
-        showDirections: z.boolean().optional().describe("Whether to show direction arrows"),
+          coordinates: z.array(z.array(z.number())).describe("Array of [lng, lat] coordinate pairs forming the route path"),
+          source: z.object({
+            lat: z.number().describe("Source latitude"),
+            lng: z.number().describe("Source longitude"),
+            name: z.string().describe("Source location name (e.g., 'Eiffel Tower', 'Paris')")
+          }).describe("Route starting point"),
+          destination: z.object({
+            lat: z.number().describe("Destination latitude"),
+            lng: z.number().describe("Destination longitude"),
+            name: z.string().describe("Destination location name (e.g., 'Louvre Museum', 'Amsterdam')")
+          }).describe("Route ending point"),
+          distance: z.string().describe("Total distance (e.g., '5.2 km', '120 miles')"),
+          duration: z.string().describe("Estimated travel time (e.g., '15 min', '2 hours 30 min')"),
+          mode: z.string().optional().describe("Travel mode: 'driving', 'walking', 'cycling', 'transit'")
+        })).describe("Array of routes to display with full navigation info"),
       },
       _meta: widgetMeta(showRoutesWidget),
     },
-    async ({ routes, showDirections = false }) => {
+    async ({ routes }) => {
       return {
         content: [
           {
             type: "text",
-            text: `Displaying ${routes.length} routes on the map`,
+            text: `Displaying ${routes.length} route${routes.length > 1 ? 's' : ''} with navigation details`,
           },
         ],
         structuredContent: {
           action: "show_routes",
           routes,
-          showDirections,
           timestamp: new Date().toISOString(),
         },
         _meta: widgetMeta(showRoutesWidget),

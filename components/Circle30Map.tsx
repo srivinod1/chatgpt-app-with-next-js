@@ -431,18 +431,36 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     }
   };
 
-  // Handle route display
-  const addRoutes = (routes: any[], showDirections: boolean) => {
+  // Handle route display with Google Maps style
+  const addRoutes = (routes: any[]) => {
     if (!mapRef.current) return;
 
     console.log('Adding routes:', routes.length);
 
+    // Clear existing route markers
+    markersRef.current.forEach(marker => {
+      const el = marker.getElement();
+      if (el && (el.classList.contains('route-marker') || el.classList.contains('route-info'))) {
+        marker.remove();
+      }
+    });
+    markersRef.current = markersRef.current.filter(marker => {
+      const el = marker.getElement();
+      return el && !el.classList.contains('route-marker') && !el.classList.contains('route-info');
+    });
+
+    const bounds = new maplibregl.LngLatBounds();
+
     routes.forEach((route, index) => {
       const sourceId = `route-${index}`;
       const layerId = `route-line-${index}`;
-      
-      // Remove existing route if it exists
+      const outlineLayerId = `route-outline-${index}`;
+
+      // Remove existing route layers if they exist
       if (mapRef.current!.getSource(sourceId)) {
+        if (mapRef.current!.getLayer(outlineLayerId)) {
+          mapRef.current!.removeLayer(outlineLayerId);
+        }
         if (mapRef.current!.getLayer(layerId)) {
           mapRef.current!.removeLayer(layerId);
         }
@@ -456,11 +474,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           type: 'LineString' as const,
           coordinates: route.coordinates as [number, number][]
         },
-        properties: {
-          name: route.name || `Route ${index + 1}`,
-          color: route.color,
-          width: route.width
-        }
+        properties: {}
       };
 
       // Add route source
@@ -469,7 +483,22 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         data: routeGeoJSON
       });
 
-      // Add route line
+      // Add outline for better visibility
+      mapRef.current!.addLayer({
+        id: outlineLayerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#FFFFFF',
+          'line-width': 8
+        }
+      });
+
+      // Add route line (Google Maps blue)
       mapRef.current!.addLayer({
         id: layerId,
         type: 'line',
@@ -479,11 +508,117 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           'line-cap': 'round'
         },
         paint: {
-          'line-color': route.color,
-          'line-width': route.width || 4
+          'line-color': '#4285F4',
+          'line-width': 6
         }
       });
+
+      // Add source marker (Green "A")
+      if (route.source) {
+        const sourceEl = document.createElement('div');
+        sourceEl.className = 'route-marker';
+        sourceEl.style.cssText = `
+          width: 30px;
+          height: 40px;
+          cursor: pointer;
+        `;
+        sourceEl.innerHTML = `
+          <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 0C9.477 0 5 4.477 5 10c0 7.5 10 20 10 20s10-12.5 10-20c0-5.523-4.477-10-10-10z"
+                  fill="#34A853"
+                  stroke="#fff"
+                  stroke-width="2"/>
+            <text x="15" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">A</text>
+          </svg>
+        `;
+
+        const sourceMarker = new maplibregl.Marker({ element: sourceEl })
+          .setLngLat([route.source.lng, route.source.lat])
+          .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`
+            <div style="padding: 8px; color: #000;">
+              <strong style="font-size: 14px;">Start</strong>
+              <p style="margin: 4px 0 0 0; font-size: 12px;">${route.source.name}</p>
+            </div>
+          `))
+          .addTo(mapRef.current!);
+
+        markersRef.current.push(sourceMarker);
+        bounds.extend([route.source.lng, route.source.lat]);
+      }
+
+      // Add destination marker (Red "B")
+      if (route.destination) {
+        const destEl = document.createElement('div');
+        destEl.className = 'route-marker';
+        destEl.style.cssText = `
+          width: 30px;
+          height: 40px;
+          cursor: pointer;
+        `;
+        destEl.innerHTML = `
+          <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 0C9.477 0 5 4.477 5 10c0 7.5 10 20 10 20s10-12.5 10-20c0-5.523-4.477-10-10-10z"
+                  fill="#EA4335"
+                  stroke="#fff"
+                  stroke-width="2"/>
+            <text x="15" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">B</text>
+          </svg>
+        `;
+
+        const destMarker = new maplibregl.Marker({ element: destEl })
+          .setLngLat([route.destination.lng, route.destination.lat])
+          .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`
+            <div style="padding: 8px; color: #000;">
+              <strong style="font-size: 14px;">Destination</strong>
+              <p style="margin: 4px 0 0 0; font-size: 12px;">${route.destination.name}</p>
+            </div>
+          `))
+          .addTo(mapRef.current!);
+
+        markersRef.current.push(destMarker);
+        bounds.extend([route.destination.lng, route.destination.lat]);
+      }
+
+      // Extend bounds with route coordinates
+      route.coordinates.forEach((coord: [number, number]) => {
+        bounds.extend(coord);
+      });
+
+      // Add route info box
+      if (route.distance && route.duration) {
+        const midPoint = route.coordinates[Math.floor(route.coordinates.length / 2)];
+
+        const infoEl = document.createElement('div');
+        infoEl.className = 'route-info';
+        infoEl.style.cssText = `
+          background: white;
+          padding: 8px 12px;
+          border-radius: 6px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          font-size: 13px;
+          font-weight: 600;
+          color: #333;
+          border: 2px solid #4285F4;
+          white-space: nowrap;
+        `;
+        infoEl.innerHTML = `
+          <div style="color: #4285F4; font-size: 11px; margin-bottom: 2px;">${route.mode?.toUpperCase() || 'ROUTE'}</div>
+          <div>${route.distance} • ${route.duration}</div>
+        `;
+
+        const infoMarker = new maplibregl.Marker({ element: infoEl })
+          .setLngLat(midPoint as [number, number])
+          .addTo(mapRef.current!);
+
+        markersRef.current.push(infoMarker);
+      }
     });
+
+    // Fit map to show entire route
+    if (!bounds.isEmpty()) {
+      mapRef.current!.fitBounds(bounds, { padding: 80, maxZoom: 15 });
+      console.log('Auto-fitted map bounds to show route');
+    }
   };
 
   // Handle polygon display
@@ -810,7 +945,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         addPOIs(action.pois, action.showLabels);
         break;
       case 'show_routes':
-        addRoutes(action.routes, action.showDirections);
+        addRoutes(action.routes);
         break;
       case 'show_polygons':
         addPolygons(action.polygons, action.showLabels);
