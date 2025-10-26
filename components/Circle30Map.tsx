@@ -317,7 +317,27 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     if (!mapRef.current) return;
 
     console.log('Adding POIs:', pois.length);
-    
+    console.log('Raw POI data:', JSON.stringify(pois));
+
+    // Validate and filter POIs with valid coordinates
+    const validPOIs = pois.filter((poi, index) => {
+      const hasValidLat = typeof poi.lat === 'number' && !isNaN(poi.lat) && poi.lat >= -90 && poi.lat <= 90;
+      const hasValidLng = typeof poi.lng === 'number' && !isNaN(poi.lng) && poi.lng >= -180 && poi.lng <= 180;
+
+      if (!hasValidLat || !hasValidLng) {
+        console.error(`POI ${index} has invalid coordinates:`, poi);
+        return false;
+      }
+      return true;
+    });
+
+    if (validPOIs.length === 0) {
+      console.error('No valid POIs to display!');
+      return;
+    }
+
+    console.log(`Displaying ${validPOIs.length} valid POIs out of ${pois.length}`);
+
     // Remove existing POI source if it exists
     if (mapRef.current.getSource('pois')) {
       if (mapRef.current.getLayer('pois-circles')) {
@@ -332,7 +352,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     // Create GeoJSON for POIs
     const poiGeoJSON = {
       type: 'FeatureCollection' as const,
-      features: pois.map((poi, index) => ({
+      features: validPOIs.map((poi, index) => ({
         type: 'Feature' as const,
         geometry: {
           type: 'Point' as const,
@@ -340,13 +360,15 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         },
         properties: {
           id: index,
-          name: poi.name,
-          type: poi.type,
-          color: poi.color,
+          name: poi.name || 'Unknown',
+          type: poi.type || 'poi',
+          color: poi.color || '#ff6b6b',
           description: poi.description || ''
         }
       }))
     };
+
+    console.log('POI GeoJSON features:', poiGeoJSON.features.length);
 
     // Add POI source
     mapRef.current.addSource('pois', {
@@ -360,7 +382,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
       type: 'circle',
       source: 'pois',
       paint: {
-        'circle-color': ['get', 'color'],
+        'circle-color': ['coalesce', ['get', 'color'], '#ff6b6b'],
         'circle-radius': 8,
         'circle-stroke-width': 2,
         'circle-stroke-color': '#fff'
@@ -641,14 +663,23 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           usedForInitialCenter = true;
           console.log('Using center_map for initial center:', initialCenter, 'zoom:', initialZoom);
         } else if (mapAction && mapAction.action === 'show_pois' && mapAction.pois && mapAction.pois.length > 0) {
-          // Calculate center from POIs
-          const lats = mapAction.pois.map((p: any) => p.lat);
-          const lngs = mapAction.pois.map((p: any) => p.lng);
-          const avgLat = lats.reduce((a: number, b: number) => a + b, 0) / lats.length;
-          const avgLng = lngs.reduce((a: number, b: number) => a + b, 0) / lngs.length;
-          initialCenter = [avgLng, avgLat];
-          initialZoom = 12;
-          console.log('Using POI center for initial center:', initialCenter);
+          // Calculate center from POIs - only use POIs with valid coordinates
+          const validCoords = mapAction.pois.filter((p: any) =>
+            typeof p.lat === 'number' && !isNaN(p.lat) &&
+            typeof p.lng === 'number' && !isNaN(p.lng)
+          );
+
+          if (validCoords.length > 0) {
+            const lats = validCoords.map((p: any) => p.lat);
+            const lngs = validCoords.map((p: any) => p.lng);
+            const avgLat = lats.reduce((a: number, b: number) => a + b, 0) / lats.length;
+            const avgLng = lngs.reduce((a: number, b: number) => a + b, 0) / lngs.length;
+            initialCenter = [avgLng, avgLat];
+            initialZoom = 12;
+            console.log('Using POI center for initial center:', initialCenter);
+          } else {
+            console.warn('No valid POI coordinates for initial center, using default');
+          }
         }
 
         const map = new maplibregl.Map({
