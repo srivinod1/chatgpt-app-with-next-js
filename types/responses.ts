@@ -77,6 +77,13 @@ export interface ShowRoutesAction extends MapAction {
   coordinates?: [number, number][];
   distance?: string;
   duration?: string;
+  trafficSections?: Array<{
+    startPointIndex: number;
+    endPointIndex: number;
+    trafficSpeed: string;
+    delaySeconds: number;
+    magnitudeOfDelay: number;
+  }>;
   error?: string;
 }
 

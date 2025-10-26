@@ -431,13 +431,30 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     }
   };
 
+  // Helper function to get traffic color
+  const getTrafficColor = (trafficSpeed: string): string => {
+    switch (trafficSpeed) {
+      case 'JAM':
+        return '#D32F2F'; // Dark red - heavy traffic
+      case 'SLOW':
+        return '#F57C00'; // Orange - slow traffic
+      case 'MEDIUM':
+        return '#FBC02D'; // Yellow - moderate traffic
+      case 'FAST':
+      case 'FREE_FLOW':
+        return '#388E3C'; // Green - free flow
+      default:
+        return '#4285F4'; // Blue - unknown/default
+    }
+  };
+
   // Handle route display with Google Maps style - route data comes from server
   const addRoutes = (routeData: any) => {
     if (!mapRef.current) return;
 
     console.log('Rendering route on map...');
 
-    // Clear existing route markers
+    // Clear existing route markers and layers
     markersRef.current.forEach(marker => {
       const el = marker.getElement();
       if (el && (el.classList.contains('route-marker') || el.classList.contains('route-info'))) {
@@ -449,7 +466,26 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
       return el && !el.classList.contains('route-marker') && !el.classList.contains('route-info');
     });
 
-    const { source, destination, mode, coordinates, distance, duration } = routeData;
+    // Remove all existing route layers
+    const style = mapRef.current.getStyle();
+    if (style && style.layers) {
+      style.layers.forEach(layer => {
+        if (layer.id.startsWith('route-') || layer.id.startsWith('traffic-')) {
+          mapRef.current!.removeLayer(layer.id);
+        }
+      });
+    }
+
+    // Remove all route sources
+    if (style && style.sources) {
+      Object.keys(style.sources).forEach(sourceId => {
+        if (sourceId.startsWith('route-') || sourceId.startsWith('traffic-')) {
+          mapRef.current!.removeSource(sourceId);
+        }
+      });
+    }
+
+    const { source, destination, mode, coordinates, distance, duration, trafficSections } = routeData;
 
     // Check if route data exists
     if (!coordinates || coordinates.length === 0) {
@@ -458,25 +494,77 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     }
 
     console.log(`Rendering route: ${distance}, ${duration}`);
+    console.log(`Traffic sections: ${trafficSections?.length || 0}`);
 
-      const bounds = new maplibregl.LngLatBounds();
-      const index = 0;
-      const sourceId = `route-${index}`;
-      const layerId = `route-line-${index}`;
-      const outlineLayerId = `route-outline-${index}`;
+    const bounds = new maplibregl.LngLatBounds();
 
-      // Remove existing route layers if they exist
-      if (mapRef.current!.getSource(sourceId)) {
-        if (mapRef.current!.getLayer(outlineLayerId)) {
-          mapRef.current!.removeLayer(outlineLayerId);
-        }
-        if (mapRef.current!.getLayer(layerId)) {
-          mapRef.current!.removeLayer(layerId);
-        }
-        mapRef.current!.removeSource(sourceId);
-      }
+    // Render traffic sections if available
+    if (trafficSections && trafficSections.length > 0) {
+      trafficSections.forEach((section: any, index: number) => {
+        const sectionCoords = coordinates.slice(section.startPointIndex, section.endPointIndex + 1);
+        const trafficColor = getTrafficColor(section.trafficSpeed);
 
-      // Create GeoJSON for route
+        const sourceId = `traffic-section-${index}`;
+        const outlineLayerId = `traffic-outline-${index}`;
+        const layerId = `traffic-line-${index}`;
+
+        // Create GeoJSON for this traffic section
+        const sectionGeoJSON = {
+          type: 'Feature' as const,
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: sectionCoords as [number, number][]
+          },
+          properties: {
+            trafficSpeed: section.trafficSpeed,
+            delay: section.delaySeconds
+          }
+        };
+
+        // Add section source
+        mapRef.current!.addSource(sourceId, {
+          type: 'geojson',
+          data: sectionGeoJSON
+        });
+
+        // Add white outline for visibility
+        mapRef.current!.addLayer({
+          id: outlineLayerId,
+          type: 'line',
+          source: sourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#FFFFFF',
+            'line-width': 8
+          }
+        });
+
+        // Add colored traffic line
+        mapRef.current!.addLayer({
+          id: layerId,
+          type: 'line',
+          source: sourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': trafficColor,
+            'line-width': 6
+          }
+        });
+
+        console.log(`Traffic section ${index}: ${section.trafficSpeed} (${trafficColor})`);
+      });
+    } else {
+      // No traffic data, render single blue line
+      const sourceId = 'route-0';
+      const outlineLayerId = 'route-outline-0';
+      const layerId = 'route-line-0';
+
       const routeGeoJSON = {
         type: 'Feature' as const,
         geometry: {
@@ -486,13 +574,11 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         properties: {}
       };
 
-      // Add route source
       mapRef.current!.addSource(sourceId, {
         type: 'geojson',
         data: routeGeoJSON
       });
 
-      // Add outline for better visibility
       mapRef.current!.addLayer({
         id: outlineLayerId,
         type: 'line',
@@ -507,7 +593,6 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         }
       });
 
-      // Add route line (Google Maps blue)
       mapRef.current!.addLayer({
         id: layerId,
         type: 'line',
@@ -521,6 +606,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           'line-width': 6
         }
       });
+    }
 
       // Add source marker (Red "A")
       const sourceEl = document.createElement('div');

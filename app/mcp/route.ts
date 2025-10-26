@@ -423,12 +423,12 @@ const handler = createMcpHandler(async (server) => {
       _meta: widgetMeta(showRoutesWidget),
     },
     async ({ source, destination, mode = 'car' }) => {
-      // Call TomTom Orbis Routing API server-side to avoid CORS
+      // Call TomTom Routing API server-side with traffic data
       try {
         const apiKey = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
-        const routingApiUrl = `https://api.tomtom.com/routing/1/calculateRoute/${source.lat},${source.lng}:${destination.lat},${destination.lng}/json?key=${apiKey}&travelMode=${mode}`;
+        const routingApiUrl = `https://api.tomtom.com/routing/1/calculateRoute/${source.lat},${source.lng}:${destination.lat},${destination.lng}/json?key=${apiKey}&travelMode=${mode}&traffic=true&sectionType=traffic`;
 
-        console.log('Calling TomTom Routing API server-side:', routingApiUrl);
+        console.log('Calling TomTom Routing API with traffic data:', routingApiUrl);
 
         const response = await fetch(routingApiUrl);
         const data = await response.json();
@@ -442,11 +442,23 @@ const handler = createMcpHandler(async (server) => {
         const distanceKm = (route.summary.lengthInMeters / 1000).toFixed(1);
         const durationMin = Math.round(route.summary.travelTimeInSeconds / 60);
 
+        // Extract traffic sections
+        const trafficSections = route.sections?.map((section: any) => ({
+          startPointIndex: section.startPointIndex,
+          endPointIndex: section.endPointIndex,
+          // TomTom traffic values: JAM, SLOW, MEDIUM, FAST, FREE_FLOW
+          trafficSpeed: section.simpleCategory || 'FREE_FLOW',
+          delaySeconds: section.delayInSeconds || 0,
+          magnitudeOfDelay: section.magnitudeOfDelay || 0 // 0=unknown, 1=minor, 2=moderate, 3=major, 4=undefined
+        })) || [];
+
+        console.log(`Route found with ${trafficSections.length} traffic sections`);
+
         return {
           content: [
             {
               type: "text",
-              text: `Route found: ${distanceKm} km, ${durationMin} min via ${mode}`,
+              text: `Route found: ${distanceKm} km, ${durationMin} min via ${mode} with real-time traffic`,
             },
           ],
           structuredContent: {
@@ -457,6 +469,7 @@ const handler = createMcpHandler(async (server) => {
             coordinates,
             distance: `${distanceKm} km`,
             duration: `${durationMin} min`,
+            trafficSections,
             timestamp: new Date().toISOString(),
           },
           _meta: widgetMeta(showRoutesWidget),
