@@ -387,6 +387,17 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         }
       });
     }
+
+    // Auto-fit map to show all POIs
+    if (poiGeoJSON.features.length > 0) {
+      const bounds = new maplibregl.LngLatBounds();
+      poiGeoJSON.features.forEach(feature => {
+        const coords = feature.geometry.coordinates as [number, number];
+        bounds.extend(coords);
+      });
+      mapRef.current.fitBounds(bounds, { padding: 100, maxZoom: 15 });
+      console.log('Auto-fitted map bounds to show all POIs');
+    }
   };
 
   // Handle route display

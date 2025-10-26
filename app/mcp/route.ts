@@ -72,7 +72,7 @@ const handler = createMcpHandler(async (server) => {
     invoking: "Adding POIs...",
     invoked: "POIs displayed",
     html: html,
-    description: "Displays points of interest on the map",
+    description: "Displays points of interest on the map such as hotels, restaurants, attractions, landmarks, and other locations",
     widgetDomain: "https://chatgpt-app-with-next-js-tan-theta.vercel.app",
   };
 
@@ -369,16 +369,16 @@ const handler = createMcpHandler(async (server) => {
     showPOIsWidget.id,
     {
       title: showPOIsWidget.title,
-      description: "Display points of interest on the map with custom colors and labels",
+      description: "Display points of interest on the map such as hotels, restaurants, attractions, landmarks, and other locations. Use this when the user asks to show hotels, restaurants, or any specific places on the map. Each POI will be shown as a colored marker.",
       inputSchema: {
         pois: z.array(z.object({
           lat: z.number().describe("Latitude coordinate"),
           lng: z.number().describe("Longitude coordinate"),
-          name: z.string().describe("POI name"),
-          type: z.string().describe("POI type"),
-          color: z.string().describe("Color for the POI marker"),
+          name: z.string().describe("POI name (e.g., hotel name, restaurant name)"),
+          type: z.string().describe("POI type (e.g., 'hotel', 'restaurant', 'attraction')"),
+          color: z.string().describe("Color for the POI marker (e.g., '#ff6b6b', '#4ecdc4')"),
           description: z.string().optional().describe("Optional description")
-        })).describe("Array of points of interest to display"),
+        })).describe("Array of points of interest to display (hotels, restaurants, etc.)"),
         showLabels: z.boolean().optional().describe("Whether to show text labels on POIs"),
       },
       _meta: widgetMeta(showPOIsWidget),
