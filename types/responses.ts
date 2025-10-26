@@ -63,8 +63,17 @@ export interface Route {
 
 export interface ShowRoutesAction extends MapAction {
   action: 'show_routes';
-  routes: Route[];
-  showDirections: boolean;
+  source: {
+    lat: number;
+    lng: number;
+    name: string;
+  };
+  destination: {
+    lat: number;
+    lng: number;
+    name: string;
+  };
+  mode?: 'car' | 'pedestrian' | 'bicycle';
 }
 
 export interface MapPolygon {

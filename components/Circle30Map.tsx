@@ -431,11 +431,11 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     }
   };
 
-  // Handle route display with Google Maps style
-  const addRoutes = (routes: any[]) => {
+  // Handle route display with Google Maps style - fetches route from TomTom API
+  const addRoutes = async (routeRequest: any) => {
     if (!mapRef.current) return;
 
-    console.log('Adding routes:', routes.length);
+    console.log('Fetching route from TomTom API...');
 
     // Clear existing route markers
     markersRef.current.forEach(marker => {
@@ -449,9 +449,31 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
       return el && !el.classList.contains('route-marker') && !el.classList.contains('route-info');
     });
 
-    const bounds = new maplibregl.LngLatBounds();
+    const { source, destination, mode = 'car' } = routeRequest;
 
-    routes.forEach((route, index) => {
+    // Call TomTom Orbis Routing API
+    try {
+      const routingApiUrl = `https://api.tomtom.com/orbis/routing/route/json?key=${apiKey}&apiVersion=1&locations=${source.lng},${source.lat}:${destination.lng},${destination.lat}&travelMode=${mode}`;
+
+      console.log('Calling TomTom Orbis Routing API:', routingApiUrl);
+
+      const response = await fetch(routingApiUrl);
+      const data = await response.json();
+
+      if (!data.routes || data.routes.length === 0) {
+        console.error('No route found');
+        return;
+      }
+
+      const route = data.routes[0];
+      const coordinates = route.legs[0].points.map((point: any) => [point.longitude, point.latitude]);
+      const distanceKm = (route.summary.lengthInMeters / 1000).toFixed(1);
+      const durationMin = Math.round(route.summary.travelTimeInSeconds / 60);
+
+      console.log(`Route found: ${distanceKm} km, ${durationMin} min`);
+
+      const bounds = new maplibregl.LngLatBounds();
+      const index = 0;
       const sourceId = `route-${index}`;
       const layerId = `route-line-${index}`;
       const outlineLayerId = `route-outline-${index}`;
@@ -472,7 +494,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         type: 'Feature' as const,
         geometry: {
           type: 'LineString' as const,
-          coordinates: route.coordinates as [number, number][]
+          coordinates: coordinates as [number, number][]
         },
         properties: {}
       };
@@ -513,111 +535,107 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         }
       });
 
-      // Add source marker (Green "A")
-      if (route.source) {
-        const sourceEl = document.createElement('div');
-        sourceEl.className = 'route-marker';
-        sourceEl.style.cssText = `
-          width: 30px;
-          height: 40px;
-          cursor: pointer;
-        `;
-        sourceEl.innerHTML = `
-          <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
-            <path d="M15 0C9.477 0 5 4.477 5 10c0 7.5 10 20 10 20s10-12.5 10-20c0-5.523-4.477-10-10-10z"
-                  fill="#34A853"
-                  stroke="#fff"
-                  stroke-width="2"/>
-            <text x="15" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">A</text>
-          </svg>
-        `;
+      // Add source marker (Red "A")
+      const sourceEl = document.createElement('div');
+      sourceEl.className = 'route-marker';
+      sourceEl.style.cssText = `
+        width: 30px;
+        height: 40px;
+        cursor: pointer;
+      `;
+      sourceEl.innerHTML = `
+        <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 0C9.477 0 5 4.477 5 10c0 7.5 10 20 10 20s10-12.5 10-20c0-5.523-4.477-10-10-10z"
+                fill="#EA4335"
+                stroke="#fff"
+                stroke-width="2"/>
+          <text x="15" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">A</text>
+        </svg>
+      `;
 
-        const sourceMarker = new maplibregl.Marker({ element: sourceEl })
-          .setLngLat([route.source.lng, route.source.lat])
-          .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`
-            <div style="padding: 8px; color: #000;">
-              <strong style="font-size: 14px;">Start</strong>
-              <p style="margin: 4px 0 0 0; font-size: 12px;">${route.source.name}</p>
-            </div>
-          `))
-          .addTo(mapRef.current!);
+      const sourceMarker = new maplibregl.Marker({ element: sourceEl })
+        .setLngLat([source.lng, source.lat])
+        .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`
+          <div style="padding: 8px; color: #000;">
+            <strong style="font-size: 14px;">Start</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12px;">${source.name}</p>
+          </div>
+        `))
+        .addTo(mapRef.current!);
 
-        markersRef.current.push(sourceMarker);
-        bounds.extend([route.source.lng, route.source.lat]);
-      }
+      markersRef.current.push(sourceMarker);
+      bounds.extend([source.lng, source.lat]);
 
       // Add destination marker (Red "B")
-      if (route.destination) {
-        const destEl = document.createElement('div');
-        destEl.className = 'route-marker';
-        destEl.style.cssText = `
-          width: 30px;
-          height: 40px;
-          cursor: pointer;
-        `;
-        destEl.innerHTML = `
-          <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
-            <path d="M15 0C9.477 0 5 4.477 5 10c0 7.5 10 20 10 20s10-12.5 10-20c0-5.523-4.477-10-10-10z"
-                  fill="#EA4335"
-                  stroke="#fff"
-                  stroke-width="2"/>
-            <text x="15" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">B</text>
-          </svg>
-        `;
+      const destEl = document.createElement('div');
+      destEl.className = 'route-marker';
+      destEl.style.cssText = `
+        width: 30px;
+        height: 40px;
+        cursor: pointer;
+      `;
+      destEl.innerHTML = `
+        <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 0C9.477 0 5 4.477 5 10c0 7.5 10 20 10 20s10-12.5 10-20c0-5.523-4.477-10-10-10z"
+                fill="#EA4335"
+                stroke="#fff"
+                stroke-width="2"/>
+          <text x="15" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">B</text>
+        </svg>
+      `;
 
-        const destMarker = new maplibregl.Marker({ element: destEl })
-          .setLngLat([route.destination.lng, route.destination.lat])
-          .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`
-            <div style="padding: 8px; color: #000;">
-              <strong style="font-size: 14px;">Destination</strong>
-              <p style="margin: 4px 0 0 0; font-size: 12px;">${route.destination.name}</p>
-            </div>
-          `))
-          .addTo(mapRef.current!);
+      const destMarker = new maplibregl.Marker({ element: destEl })
+        .setLngLat([destination.lng, destination.lat])
+        .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`
+          <div style="padding: 8px; color: #000;">
+            <strong style="font-size: 14px;">Destination</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12px;">${destination.name}</p>
+          </div>
+        `))
+        .addTo(mapRef.current!);
 
-        markersRef.current.push(destMarker);
-        bounds.extend([route.destination.lng, route.destination.lat]);
-      }
+      markersRef.current.push(destMarker);
+      bounds.extend([destination.lng, destination.lat]);
 
       // Extend bounds with route coordinates
-      route.coordinates.forEach((coord: [number, number]) => {
+      coordinates.forEach((coord: [number, number]) => {
         bounds.extend(coord);
       });
 
       // Add route info box
-      if (route.distance && route.duration) {
-        const midPoint = route.coordinates[Math.floor(route.coordinates.length / 2)];
+      const midPoint = coordinates[Math.floor(coordinates.length / 2)];
 
-        const infoEl = document.createElement('div');
-        infoEl.className = 'route-info';
-        infoEl.style.cssText = `
-          background: white;
-          padding: 8px 12px;
-          border-radius: 6px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          font-size: 13px;
-          font-weight: 600;
-          color: #333;
-          border: 2px solid #4285F4;
-          white-space: nowrap;
-        `;
-        infoEl.innerHTML = `
-          <div style="color: #4285F4; font-size: 11px; margin-bottom: 2px;">${route.mode?.toUpperCase() || 'ROUTE'}</div>
-          <div>${route.distance} • ${route.duration}</div>
-        `;
+      const infoEl = document.createElement('div');
+      infoEl.className = 'route-info';
+      infoEl.style.cssText = `
+        background: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        border: 2px solid #4285F4;
+        white-space: nowrap;
+      `;
+      infoEl.innerHTML = `
+        <div style="color: #4285F4; font-size: 11px; margin-bottom: 2px;">${mode.toUpperCase()}</div>
+        <div>${distanceKm} km • ${durationMin} min</div>
+      `;
 
-        const infoMarker = new maplibregl.Marker({ element: infoEl })
-          .setLngLat(midPoint as [number, number])
-          .addTo(mapRef.current!);
+      const infoMarker = new maplibregl.Marker({ element: infoEl })
+        .setLngLat(midPoint as [number, number])
+        .addTo(mapRef.current!);
 
-        markersRef.current.push(infoMarker);
+      markersRef.current.push(infoMarker);
+
+      // Fit map to show entire route
+      if (!bounds.isEmpty()) {
+        mapRef.current!.fitBounds(bounds, { padding: 80, maxZoom: 15 });
+        console.log('Auto-fitted map bounds to show route');
       }
-    });
-
-    // Fit map to show entire route
-    if (!bounds.isEmpty()) {
-      mapRef.current!.fitBounds(bounds, { padding: 80, maxZoom: 15 });
-      console.log('Auto-fitted map bounds to show route');
+    } catch (error) {
+      console.error('Error fetching route from TomTom API:', error);
     }
   };
 
@@ -945,7 +963,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         addPOIs(action.pois, action.showLabels);
         break;
       case 'show_routes':
-        addRoutes(action.routes);
+        addRoutes({ source: action.source, destination: action.destination, mode: action.mode });
         break;
       case 'show_polygons':
         addPolygons(action.polygons, action.showLabels);
