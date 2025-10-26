@@ -12,6 +12,7 @@ interface Circle30MapProps {
 
 export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps) {
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [containerReady, setContainerReady] = useState(false);
@@ -312,24 +313,19 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     }
   };
 
-  // Handle POI display
+  // Handle POI display with Google Maps style markers
   const addPOIs = (pois: any[], showLabels: boolean) => {
     if (!mapRef.current) {
       console.error('addPOIs called but map not ready');
       return;
     }
 
-    if (!mapRef.current.isStyleLoaded()) {
-      console.warn('Map style not loaded yet, waiting...');
-      mapRef.current.once('styledata', () => {
-        console.log('Style loaded, now adding POIs');
-        addPOIs(pois, showLabels);
-      });
-      return;
-    }
-
     console.log('Adding POIs:', pois.length);
     console.log('Raw POI data:', JSON.stringify(pois));
+
+    // Remove existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
 
     // Validate and filter POIs with valid coordinates
     const validPOIs = pois.filter((poi, index) => {
@@ -350,98 +346,55 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
     console.log(`Displaying ${validPOIs.length} valid POIs out of ${pois.length}`);
 
-    // Remove existing POI source if it exists
-    if (mapRef.current.getSource('pois')) {
-      if (mapRef.current.getLayer('pois-circles')) {
-        mapRef.current.removeLayer('pois-circles');
+    // Create markers for each POI
+    validPOIs.forEach((poi) => {
+      const color = poi.color || '#EA4335'; // Default to Google Maps red
+
+      // Create marker element
+      const el = document.createElement('div');
+      el.className = 'custom-marker';
+      el.style.width = '30px';
+      el.style.height = '40px';
+      el.style.cursor = 'pointer';
+      el.innerHTML = `
+        <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 0C9.477 0 5 4.477 5 10c0 7.5 10 20 10 20s10-12.5 10-20c0-5.523-4.477-10-10-10z"
+                fill="${color}"
+                stroke="#fff"
+                stroke-width="2"/>
+          <circle cx="15" cy="10" r="4" fill="#fff"/>
+        </svg>
+      `;
+
+      // Create marker
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([poi.lng, poi.lat]);
+
+      // Add popup if labels are enabled
+      if (showLabels) {
+        const popup = new maplibregl.Popup({ offset: 25 })
+          .setHTML(`
+            <div style="padding: 8px; color: #000;">
+              <strong style="font-size: 14px;">${poi.name || 'Unknown'}</strong>
+              ${poi.description ? `<p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">${poi.description}</p>` : ''}
+            </div>
+          `);
+        marker.setPopup(popup);
       }
-      if (mapRef.current.getLayer('pois-labels')) {
-        mapRef.current.removeLayer('pois-labels');
-      }
-      mapRef.current.removeSource('pois');
-    }
 
-    // Create GeoJSON for POIs
-    const poiGeoJSON = {
-      type: 'FeatureCollection' as const,
-      features: validPOIs.map((poi, index) => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: [poi.lng, poi.lat] as [number, number]
-        },
-        properties: {
-          id: index,
-          name: poi.name || 'Unknown',
-          type: poi.type || 'poi',
-          color: poi.color || '#ff6b6b',
-          description: poi.description || ''
-        }
-      }))
-    };
-
-    console.log('POI GeoJSON features:', poiGeoJSON.features.length);
-
-    // Add POI source
-    mapRef.current.addSource('pois', {
-      type: 'geojson',
-      data: poiGeoJSON
+      marker.addTo(mapRef.current!);
+      markersRef.current.push(marker);
     });
-    console.log('POI source added to map');
 
-    // Add POI circles
-    mapRef.current.addLayer({
-      id: 'pois-circles',
-      type: 'circle',
-      source: 'pois',
-      paint: {
-        'circle-color': ['coalesce', ['get', 'color'], '#ff6b6b'],
-        'circle-radius': 10,
-        'circle-stroke-width': 3,
-        'circle-stroke-color': '#ffffff'
-      }
-    });
-    console.log('POI circles layer added to map');
-
-    // Verify layer was added
-    const hasSource = mapRef.current.getSource('pois');
-    const hasLayer = mapRef.current.getLayer('pois-circles');
-    console.log('Source exists:', !!hasSource, 'Layer exists:', !!hasLayer);
-
-    // Add POI labels if requested
-    if (showLabels) {
-      try {
-        mapRef.current.addLayer({
-          id: 'pois-labels',
-          type: 'symbol',
-          source: 'pois',
-          layout: {
-            'text-field': ['get', 'name'],
-            'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
-            'text-offset': [0, 1.5],
-            'text-anchor': 'top',
-            'text-size': 11
-          },
-          paint: {
-            'text-color': '#ffffff',
-            'text-halo-color': '#000000',
-            'text-halo-width': 1
-          }
-        });
-        console.log('POI labels layer added to map');
-      } catch (error) {
-        console.error('Failed to add POI labels:', error);
-      }
-    }
+    console.log(`Added ${markersRef.current.length} Google Maps style markers`);
 
     // Auto-fit map to show all POIs
-    if (poiGeoJSON.features.length > 0) {
+    if (validPOIs.length > 0) {
       const bounds = new maplibregl.LngLatBounds();
-      poiGeoJSON.features.forEach(feature => {
-        const coords = feature.geometry.coordinates as [number, number];
-        bounds.extend(coords);
+      validPOIs.forEach(poi => {
+        bounds.extend([poi.lng, poi.lat]);
       });
-      mapRef.current.fitBounds(bounds, { padding: 100, maxZoom: 15 });
+      mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 15 });
       console.log('Auto-fitted map bounds to show all POIs');
     }
   };
@@ -746,6 +699,11 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     loadMap();
 
     return () => {
+      // Clean up markers
+      markersRef.current.forEach(marker => marker.remove());
+      markersRef.current = [];
+
+      // Clean up map
       if (mapRef.current) {
         console.log('Cleaning up map instance');
         mapRef.current.remove();
