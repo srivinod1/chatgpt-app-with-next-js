@@ -547,15 +547,8 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
   // Callback ref to ensure container is ready
   const mapContainerRef = useCallback((node: HTMLDivElement | null) => {
-    console.log('Map container ref callback:', { 
-      node, 
-      hasMap: !!mapRef.current,
-      nodeDimensions: node ? { width: node.offsetWidth, height: node.offsetHeight } : null,
-      documentReady: document.readyState,
-      iframeContext: window !== window.top
-    });
     if (node && !mapRef.current) {
-      console.log('Setting container ready to true');
+      console.log('Container ready, will initialize map');
       // Add a small delay to ensure iframe is fully ready
       setTimeout(() => {
         setContainerReady(true);
@@ -608,17 +601,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           return;
         }
 
-        console.log('Container found, initializing map:', {
-          container: container,
-          containerId: container.id,
-          containerClass: container.className,
-          containerDimensions: {
-            width: container.offsetWidth,
-            height: container.offsetHeight
-          },
-          documentReady: document.readyState,
-          iframeContext: window !== window.top
-        });
+        console.log('Container found, initializing map');
 
         // Ensure container has proper dimensions
         if (container.offsetWidth === 0 || container.offsetHeight === 0) {
@@ -645,24 +628,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           return;
         }
 
-        // Validate container is actually an HTMLElement
-        if (!(container instanceof HTMLElement)) {
-          console.error('Container is not an HTMLElement:', typeof container, container);
-          setError('Map container is not a valid HTML element');
-          setIsLoading(false);
-          return;
-        }
-
-        console.log('Container validation passed, creating map with:', {
-          container: container,
-          containerType: container.constructor.name,
-          isConnected: container.isConnected,
-          parentNode: container.parentNode,
-          dimensions: {
-            width: container.offsetWidth,
-            height: container.offsetHeight
-          }
-        });
+        console.log('Container validation passed, ready to create map');
 
         // Determine initial center and zoom based on mapAction
         let initialCenter: [number, number] = [-97.7431, 30.2672]; // Default to Austin
