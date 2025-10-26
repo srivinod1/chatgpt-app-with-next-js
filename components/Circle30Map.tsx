@@ -350,12 +350,15 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
     validPOIs.forEach((poi) => {
       const color = '#EA4335'; // Always use Google Maps red for all markers
 
-      // Create marker element
+      // Create marker element with label
       const el = document.createElement('div');
       el.className = 'custom-marker';
-      el.style.width = '30px';
-      el.style.height = '40px';
-      el.style.cursor = 'pointer';
+      el.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+      `;
       el.innerHTML = `
         <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
           <path d="M15 0C9.477 0 5 4.477 5 10c0 7.5 10 20 10 20s10-12.5 10-20c0-5.523-4.477-10-10-10z"
@@ -364,6 +367,17 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
                 stroke-width="2"/>
           <circle cx="15" cy="10" r="4" fill="#fff"/>
         </svg>
+        <div style="
+          background: white;
+          color: #333;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 600;
+          white-space: nowrap;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          margin-top: -5px;
+        ">${poi.name || 'Unknown'}</div>
       `;
 
       // Create marker
