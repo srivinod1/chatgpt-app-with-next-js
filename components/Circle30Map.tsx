@@ -314,7 +314,19 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
   // Handle POI display
   const addPOIs = (pois: any[], showLabels: boolean) => {
-    if (!mapRef.current) return;
+    if (!mapRef.current) {
+      console.error('addPOIs called but map not ready');
+      return;
+    }
+
+    if (!mapRef.current.isStyleLoaded()) {
+      console.warn('Map style not loaded yet, waiting...');
+      mapRef.current.once('styledata', () => {
+        console.log('Style loaded, now adding POIs');
+        addPOIs(pois, showLabels);
+      });
+      return;
+    }
 
     console.log('Adding POIs:', pois.length);
     console.log('Raw POI data:', JSON.stringify(pois));
@@ -375,6 +387,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
       type: 'geojson',
       data: poiGeoJSON
     });
+    console.log('POI source added to map');
 
     // Add POI circles
     mapRef.current.addLayer({
@@ -383,31 +396,42 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
       source: 'pois',
       paint: {
         'circle-color': ['coalesce', ['get', 'color'], '#ff6b6b'],
-        'circle-radius': 8,
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#fff'
+        'circle-radius': 10,
+        'circle-stroke-width': 3,
+        'circle-stroke-color': '#ffffff'
       }
     });
+    console.log('POI circles layer added to map');
+
+    // Verify layer was added
+    const hasSource = mapRef.current.getSource('pois');
+    const hasLayer = mapRef.current.getLayer('pois-circles');
+    console.log('Source exists:', !!hasSource, 'Layer exists:', !!hasLayer);
 
     // Add POI labels if requested
     if (showLabels) {
-      mapRef.current.addLayer({
-        id: 'pois-labels',
-        type: 'symbol',
-        source: 'pois',
-        layout: {
-          'text-field': ['get', 'name'],
-          'text-font': ['Noto Sans Regular'],
-          'text-offset': [0, 1.5],
-          'text-anchor': 'top',
-          'text-size': 11
-        },
-        paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#000000',
-          'text-halo-width': 1
-        }
-      });
+      try {
+        mapRef.current.addLayer({
+          id: 'pois-labels',
+          type: 'symbol',
+          source: 'pois',
+          layout: {
+            'text-field': ['get', 'name'],
+            'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
+            'text-offset': [0, 1.5],
+            'text-anchor': 'top',
+            'text-size': 11
+          },
+          paint: {
+            'text-color': '#ffffff',
+            'text-halo-color': '#000000',
+            'text-halo-width': 1
+          }
+        });
+        console.log('POI labels layer added to map');
+      } catch (error) {
+        console.error('Failed to add POI labels:', error);
+      }
     }
 
     // Auto-fit map to show all POIs
