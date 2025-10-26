@@ -498,10 +498,30 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
     const bounds = new maplibregl.LngLatBounds();
 
+    // Extend bounds with all route coordinates first
+    coordinates.forEach((coord: [number, number]) => {
+      if (coord && coord.length === 2 && typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+        bounds.extend(coord);
+      }
+    });
+
     // Render traffic sections if available
     if (trafficSections && trafficSections.length > 0) {
       trafficSections.forEach((section: any, index: number) => {
         const sectionCoords = coordinates.slice(section.startPointIndex, section.endPointIndex + 1);
+
+        // Filter out any invalid coordinates
+        const validCoords = sectionCoords.filter((coord: any) =>
+          coord && coord.length === 2 &&
+          typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+          !isNaN(coord[0]) && !isNaN(coord[1])
+        );
+
+        if (validCoords.length < 2) {
+          console.warn(`Skipping traffic section ${index}: insufficient valid coordinates`);
+          return;
+        }
+
         const trafficColor = getTrafficColor(section.trafficSpeed);
 
         const sourceId = `traffic-section-${index}`;
@@ -513,7 +533,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           type: 'Feature' as const,
           geometry: {
             type: 'LineString' as const,
-            coordinates: sectionCoords as [number, number][]
+            coordinates: validCoords as [number, number][]
           },
           properties: {
             trafficSpeed: section.trafficSpeed,
@@ -557,7 +577,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           }
         });
 
-        console.log(`Traffic section ${index}: ${section.trafficSpeed} (${trafficColor})`);
+        console.log(`Traffic section ${index}: ${section.trafficSpeed} (${trafficColor}), ${validCoords.length} coords`);
       });
     } else {
       // No traffic data, render single blue line
@@ -565,11 +585,20 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
       const outlineLayerId = 'route-outline-0';
       const layerId = 'route-line-0';
 
+      // Filter out any invalid coordinates
+      const validCoords = coordinates.filter((coord: any) =>
+        coord && coord.length === 2 &&
+        typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+        !isNaN(coord[0]) && !isNaN(coord[1])
+      );
+
+      console.log(`Rendering single route line with ${validCoords.length} valid coords`);
+
       const routeGeoJSON = {
         type: 'Feature' as const,
         geometry: {
           type: 'LineString' as const,
-          coordinates: coordinates as [number, number][]
+          coordinates: validCoords as [number, number][]
         },
         properties: {}
       };
