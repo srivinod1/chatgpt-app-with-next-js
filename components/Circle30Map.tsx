@@ -375,15 +375,15 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         source: 'pois',
         layout: {
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
-          'text-offset': [0, 2],
+          'text-font': ['Noto Sans Regular'],
+          'text-offset': [0, 1.5],
           'text-anchor': 'top',
-          'text-size': 12
+          'text-size': 11
         },
         paint: {
-          'text-color': '#000',
-          'text-halo-color': '#fff',
-          'text-halo-width': 2
+          'text-color': '#ffffff',
+          'text-halo-color': '#000000',
+          'text-halo-width': 1
         }
       });
     }
@@ -631,13 +631,24 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
         console.log('Container validation passed, ready to create map');
 
         // Determine initial center and zoom based on mapAction
-        let initialCenter: [number, number] = [-97.7431, 30.2672]; // Default to Austin
-        let initialZoom = 12;
-        
+        let initialCenter: [number, number] = [2.3508, 48.8569]; // Default to Paris (Europe center)
+        let initialZoom = 4; // World/Europe view
+        let usedForInitialCenter = false;
+
         if (mapAction && mapAction.action === 'center_map') {
           initialCenter = [mapAction.longitude, mapAction.latitude];
           initialZoom = mapAction.zoom;
-          console.log('Using mapAction for initial center:', initialCenter, 'zoom:', initialZoom);
+          usedForInitialCenter = true;
+          console.log('Using center_map for initial center:', initialCenter, 'zoom:', initialZoom);
+        } else if (mapAction && mapAction.action === 'show_pois' && mapAction.pois && mapAction.pois.length > 0) {
+          // Calculate center from POIs
+          const lats = mapAction.pois.map((p: any) => p.lat);
+          const lngs = mapAction.pois.map((p: any) => p.lng);
+          const avgLat = lats.reduce((a: number, b: number) => a + b, 0) / lats.length;
+          const avgLng = lngs.reduce((a: number, b: number) => a + b, 0) / lngs.length;
+          initialCenter = [avgLng, avgLat];
+          initialZoom = 12;
+          console.log('Using POI center for initial center:', initialCenter);
         }
 
         const map = new maplibregl.Map({
@@ -660,7 +671,12 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
           }
           if (mapAction) {
             console.log('Processing mapAction after map load:', mapAction);
-            handleMapAction(mapAction);
+            // Skip center_map if we already used it for initial center
+            if (mapAction.action === 'center_map' && usedForInitialCenter) {
+              console.log('Skipping center_map - already used for initial center');
+            } else {
+              handleMapAction(mapAction);
+            }
           }
         });
       } catch (err: any) {
