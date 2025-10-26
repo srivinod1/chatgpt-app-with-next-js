@@ -442,17 +442,24 @@ const handler = createMcpHandler(async (server) => {
         const distanceKm = (route.summary.lengthInMeters / 1000).toFixed(1);
         const durationMin = Math.round(route.summary.travelTimeInSeconds / 60);
 
-        // Extract traffic sections
+        // Extract traffic sections with TomTom's color information
         const trafficSections = route.sections?.map((section: any) => ({
           startPointIndex: section.startPointIndex,
           endPointIndex: section.endPointIndex,
           // TomTom traffic values: JAM, SLOW, MEDIUM, FAST, FREE_FLOW
           trafficSpeed: section.simpleCategory || 'FREE_FLOW',
           delaySeconds: section.delayInSeconds || 0,
-          magnitudeOfDelay: section.magnitudeOfDelay || 0 // 0=unknown, 1=minor, 2=moderate, 3=major, 4=undefined
+          magnitudeOfDelay: section.magnitudeOfDelay || 0, // 0=unknown, 1=minor, 2=moderate, 3=major, 4=undefined
+          // Check for TomTom-provided colors
+          effectiveSpeedInKmh: section.effectiveSpeedInKmh,
+          tmc: section.tmc // Traffic Message Channel data may contain colors
         })) || [];
 
         console.log(`Route found with ${trafficSections.length} traffic sections`);
+        // Log first section to see what data TomTom provides
+        if (trafficSections.length > 0) {
+          console.log('Sample traffic section data:', JSON.stringify(trafficSections[0], null, 2));
+        }
 
         return {
           content: [

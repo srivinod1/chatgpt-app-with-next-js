@@ -83,6 +83,8 @@ export interface ShowRoutesAction extends MapAction {
     trafficSpeed: string;
     delaySeconds: number;
     magnitudeOfDelay: number;
+    effectiveSpeedInKmh?: number;
+    tmc?: any;
   }>;
   error?: string;
 }
