@@ -348,7 +348,7 @@ export default function Circle30Map({ geojsonData, mapAction }: Circle30MapProps
 
     // Create markers for each POI
     validPOIs.forEach((poi) => {
-      const color = poi.color || '#EA4335'; // Default to Google Maps red
+      const color = '#EA4335'; // Always use Google Maps red for all markers
 
       // Create marker element
       const el = document.createElement('div');
